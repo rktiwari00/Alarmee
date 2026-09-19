@@ -1,9 +1,7 @@
 package app.wakewalk.ui.alarm
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +28,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -47,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
@@ -56,9 +54,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.wakewalk.data.preferences.UserPreferences
 import app.wakewalk.domain.model.StepTrackingMode
+import app.wakewalk.ui.theme.CanaryYellow
 import kotlinx.coroutines.delay
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun AlarmScreen(
@@ -83,7 +84,7 @@ fun AlarmScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(Color(0xFF0C0D11))
             .padding(24.dp)
     ) {
         when {
@@ -104,30 +105,30 @@ fun AlarmScreen(
                 )
             }
             else -> {
-                // Active Ringing & Challenge View
+                // Active Ringing & Step Challenge View
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Top: Current Time & Sensor Banner
+                    // Top: Minimalist Clock Dial & Title (from Pinterest image 2)
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(top = 32.dp)
+                        modifier = Modifier.padding(top = 28.dp)
                     ) {
                         Text(
                             text = currentTimeString,
-                            style = MaterialTheme.typography.displayLarge.copy(fontSize = 64.sp),
+                            style = MaterialTheme.typography.displayLarge.copy(fontSize = 58.sp),
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "WALK TO DISMISS",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
                             letterSpacing = 2.sp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = CanaryYellow
                         )
 
                         // Sensor fallback notice
@@ -135,31 +136,31 @@ fun AlarmScreen(
                         if (mode == StepTrackingMode.ACCELEROMETER_FALLBACK) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2411)),
-                                shape = RoundedCornerShape(8.dp)
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF242200)),
+                                shape = RoundedCornerShape(10.dp)
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Warning,
                                         contentDescription = null,
-                                        tint = Color(0xFFFFB74D),
+                                        tint = CanaryYellow,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "Accelerometer fallback active. Keep in hand.",
+                                        text = "Accelerometer fallback active. Keep phone in hand.",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFFFFB74D)
+                                        color = CanaryYellow
                                     )
                                 }
                             }
                         }
                     }
 
-                    // Middle: Giant Step Progress & Milestones
+                    // Middle: Giant Step Progress Ring with Canary Yellow Accents
                     val currentSteps = uiState.session?.currentSteps ?: 0
                     val targetSteps = uiState.session?.targetSteps ?: 150
                     val progressRatio = (currentSteps.toFloat() / targetSteps.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
@@ -170,32 +171,59 @@ fun AlarmScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Box(contentAlignment = Alignment.Center) {
+                            // Perimeter tick clock dial background
+                            Canvas(modifier = Modifier.size(260.dp)) {
+                                val radius = size.minDimension / 2f
+                                val center = Offset(size.width / 2f, size.height / 2f)
+                                val tickCount = 48
+                                for (i in 0 until tickCount) {
+                                    val angle = (i * 360f / tickCount) * (Math.PI / 180f)
+                                    val startR = radius - 8.dp.toPx()
+                                    val endR = radius - 2.dp.toPx()
+                                    val startX = center.x + startR * cos(angle).toFloat()
+                                    val startY = center.y + startR * sin(angle).toFloat()
+                                    val endX = center.x + endR * cos(angle).toFloat()
+                                    val endY = center.y + endR * sin(angle).toFloat()
+
+                                    drawLine(
+                                        color = Color(0xFF262832),
+                                        start = Offset(startX, startY),
+                                        end = Offset(endX, endY),
+                                        strokeWidth = 1.5.dp.toPx(),
+                                        cap = StrokeCap.Round
+                                    )
+                                }
+                            }
+
+                            // Dynamic progress ring
                             CircularProgressIndicator(
                                 progress = { animatedProgress },
                                 modifier = Modifier.size(240.dp),
-                                strokeWidth = 14.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                                trackColor = Color(0xFF222222),
+                                strokeWidth = 12.dp,
+                                color = CanaryYellow,
+                                trackColor = Color(0xFF1E2028),
                                 strokeCap = StrokeCap.Round
                             )
 
+                            // Inner readout
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.DirectionsWalk,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(36.dp)
+                                    tint = CanaryYellow,
+                                    modifier = Modifier.size(38.dp)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = "$currentSteps",
-                                    style = MaterialTheme.typography.displayMedium.copy(fontSize = 52.sp),
+                                    style = MaterialTheme.typography.displayMedium.copy(fontSize = 54.sp),
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color.White
                                 )
                                 Text(
                                     text = "/ $targetSteps STEPS",
-                                    style = MaterialTheme.typography.labelLarge,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
                                     color = Color.Gray,
                                     letterSpacing = 1.5.sp
                                 )
@@ -208,20 +236,20 @@ fun AlarmScreen(
                         Text(
                             text = if (currentSteps > 0) "Walking detected — keep moving!" else "Get out of bed and start walking...",
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium,
-                            color = if (currentSteps > 0) MaterialTheme.colorScheme.primary else Color.LightGray,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (currentSteps > 0) CanaryYellow else Color.LightGray,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "Shaking phone will not register. Genuine steps required.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.DarkGray,
+                            color = Color(0xFF6B7280),
                             textAlign = TextAlign.Center
                         )
                     }
 
-                    // Bottom: Subordinate Emergency Stop
+                    // Bottom: Subordinate Emergency Stop Button
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
@@ -269,22 +297,22 @@ private fun CompletionCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
-        shape = RoundedCornerShape(24.dp)
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF161820)),
+        shape = RoundedCornerShape(26.dp)
     ) {
         Column(
-            modifier = Modifier.padding(28.dp),
+            modifier = Modifier.padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(64.dp)
+                tint = CanaryYellow,
+                modifier = Modifier.size(68.dp)
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Text(
                 text = "You're Awake!",
@@ -302,7 +330,7 @@ private fun CompletionCard(
             Text(
                 text = "$steps steps completed in $timeString",
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color.LightGray
+                color = Color(0xFFD1D5DB)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -310,7 +338,7 @@ private fun CompletionCard(
             Text(
                 text = "Good morning ☀️",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = CanaryYellow,
                 fontWeight = FontWeight.SemiBold
             )
 
@@ -318,15 +346,19 @@ private fun CompletionCard(
 
             Button(
                 onClick = onDone,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = CanaryYellow,
+                    contentColor = Color(0xFF111827)
+                )
             ) {
                 Text(
                     text = "Good Morning",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -342,11 +374,11 @@ private fun EmergencyDismissedCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF281E1E)),
-        shape = RoundedCornerShape(24.dp)
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF221618)),
+        shape = RoundedCornerShape(26.dp)
     ) {
         Column(
-            modifier = Modifier.padding(28.dp),
+            modifier = Modifier.padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
@@ -372,11 +404,13 @@ private fun EmergencyDismissedCard(
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = onClose,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF444444))
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3F4A))
             ) {
-                Text(text = "Close", color = Color.White)
+                Text(text = "Close", color = Color.White, fontWeight = FontWeight.SemiBold)
             }
         }
     }
