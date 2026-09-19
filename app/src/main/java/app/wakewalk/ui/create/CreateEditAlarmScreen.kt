@@ -1,31 +1,39 @@
 package app.wakewalk.ui.create
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,14 +43,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.wakewalk.domain.scheduler.AlarmTimeCalculator
+import app.wakewalk.ui.components.CurvedTimePicker
 import app.wakewalk.ui.components.RepeatDaySelector
 import app.wakewalk.ui.components.StepTargetChips
-import app.wakewalk.ui.components.TimePickerModal
+import app.wakewalk.ui.theme.CanaryYellow
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateEditAlarmScreen(
     alarmId: Long,
@@ -55,33 +67,78 @@ fun CreateEditAlarmScreen(
     }
 
     val state by viewModel.uiState.collectAsState()
-    var showTimePicker by remember { mutableStateOf(false) }
-
-    val amPm = if (state.hour >= 12) "PM" else "AM"
-    val displayHour = when (val h = state.hour % 12) {
-        0 -> 12
-        else -> h
-    }
-    val timeFormatted = String.format("%02d:%02d", displayHour, state.minute)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var showAdvancedSettings by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (state.isEditMode) "Edit Alarm" else "New Alarm") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    Button(
-                        onClick = { viewModel.saveAlarm(onNavigateBack) },
-                        modifier = Modifier.padding(end = 8.dp)
+        bottomBar = {
+            // Modern Bottom Action Bar from Pinterest Image 3
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Left: Minimalist circular 'X' Cancel Button
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onNavigateBack
+                            )
                     ) {
-                        Text("Save")
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cancel",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Center: Screen Title Label
+                    Text(
+                        text = if (state.isEditMode) "Edit Alarm" else "Choose time",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Right: Circular Black / Canary Yellow '✔' Confirm Button
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF111827))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {
+                                    viewModel.saveAlarm { message ->
+                                        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+                                        onNavigateBack()
+                                    }
+                                }
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Save Alarm",
+                            tint = CanaryYellow,
+                            modifier = Modifier.size(26.dp)
+                        )
                     }
                 }
-            )
+            }
         },
         modifier = modifier.fillMaxSize()
     ) { innerPadding ->
@@ -90,135 +147,235 @@ fun CreateEditAlarmScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Big Time Selector Card
-            ElevatedCard(
-                shape = RoundedCornerShape(24.dp),
+            Text(
+                text = if (state.isEditMode) "Edit Alarm" else "Set Alarm",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            )
+
+            // Dual-column curved time picker from Pinterest Image 3
+            CurvedTimePicker(
+                hour = state.hour,
+                minute = state.minute,
+                onTimeChanged = { h, m -> viewModel.setTime(h, m) },
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
+
+            // 3 Quick Configuration Action Pills (from Pinterest Image 3)
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showTimePicker = true }
+                    .padding(vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(
+                // Pill 1: Challenge Steps
+                ElevatedCard(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 28.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .weight(1f)
+                        .clickable {
+                            val next = when (state.targetSteps) {
+                                50 -> 100
+                                100 -> 150
+                                150 -> 200
+                                200 -> 300
+                                else -> 50
+                            }
+                            viewModel.setTargetSteps(next)
+                        }
                 ) {
-                    Row(verticalAlignment = Alignment.Bottom) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 14.dp, horizontal = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.DirectionsWalk,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = timeFormatted,
-                            fontSize = 64.sp,
+                            text = "Walk Goal",
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = " $amPm",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            text = "${state.targetSteps} steps",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Text(
-                        text = "Tap to change time",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
-            }
 
-            // Label Field
-            OutlinedTextField(
-                value = state.label,
-                onValueChange = { viewModel.setLabel(it) },
-                label = { Text("Alarm Label") },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Repeat Days
-            RepeatDaySelector(
-                repeatDaysMask = state.repeatDaysMask,
-                onMaskChanged = { viewModel.setRepeatDaysMask(it) }
-            )
-
-            HorizontalDivider()
-
-            // Step Target Chips & Slider
-            StepTargetChips(
-                selectedTarget = state.targetSteps,
-                onTargetSelected = { viewModel.setTargetSteps(it) }
-            )
-
-            HorizontalDivider()
-
-            // Sound & Vibration Toggles
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // Pill 2: Sound
+                ElevatedCard(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Vibration", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Pulse vibration during alarm", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(
+                        modifier = Modifier.padding(vertical = 14.dp, horizontal = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.MusicNote,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Sound",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Radar tone",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    Switch(checked = state.vibrationEnabled, onCheckedChange = { viewModel.setVibrationEnabled(it) })
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Gradual Volume", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Ramp volume over 10 seconds", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Switch(checked = state.gradualVolume, onCheckedChange = { viewModel.setGradualVolume(it) })
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Emergency Snooze", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Allows single 5-minute snooze", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Switch(checked = state.snoozeEnabled, onCheckedChange = { viewModel.setSnoozeEnabled(it) })
-                }
-            }
-
-            // Delete Button (Edit Mode Only)
-            if (state.isEditMode) {
-                OutlinedButton(
-                    onClick = { viewModel.deleteAlarm(onNavigateBack) },
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    shape = RoundedCornerShape(16.dp),
+                // Pill 3: Repeat
+                val repeatLabel = AlarmTimeCalculator.describeRepeatDays(state.repeatDaysMask)
+                ElevatedCard(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp, bottom = 24.dp)
+                        .weight(1f)
+                        .clickable { showAdvancedSettings = !showAdvancedSettings }
                 ) {
-                    Text("Delete Alarm")
+                    Column(
+                        modifier = Modifier.padding(vertical = 14.dp, horizontal = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Repeat,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Repeat",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (repeatLabel.length > 10) "Custom" else repeatLabel,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
-        }
 
-        if (showTimePicker) {
-            TimePickerModal(
-                initialHour = state.hour,
-                initialMinute = state.minute,
-                onConfirm = { hour, minute ->
-                    viewModel.setTime(hour, minute)
-                    showTimePicker = false
-                },
-                onDismiss = { showTimePicker = false }
-            )
+            // Detailed Settings Container
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                // Alarm Label
+                OutlinedTextField(
+                    value = state.label,
+                    onValueChange = { viewModel.setLabel(it) },
+                    label = { Text("Alarm Label") },
+                    placeholder = { Text("e.g. Work Morning Walk") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Repeat Days Selection
+                RepeatDaySelector(
+                    repeatDaysMask = state.repeatDaysMask,
+                    onMaskChanged = { viewModel.setRepeatDaysMask(it) }
+                )
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+
+                // Target Steps Chips
+                StepTargetChips(
+                    selectedTarget = state.targetSteps,
+                    onTargetSelected = { viewModel.setTargetSteps(it) }
+                )
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+
+                // Toggles
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Vibration", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Vibrate along with alarm tone", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = state.vibrationEnabled, onCheckedChange = { viewModel.setVibrationEnabled(it) })
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Gradual Volume", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Gently ramp volume over 10 seconds", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = state.gradualVolume, onCheckedChange = { viewModel.setGradualVolume(it) })
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Emergency Snooze", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Allows a single 5-minute snooze", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = state.snoozeEnabled, onCheckedChange = { viewModel.setSnoozeEnabled(it) })
+                    }
+                }
+
+                // Delete Button (Edit Mode Only)
+                if (state.isEditMode) {
+                    OutlinedButton(
+                        onClick = { viewModel.deleteAlarm(onNavigateBack) },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 24.dp)
+                    ) {
+                        Text("Delete Alarm")
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+            }
         }
     }
 }
