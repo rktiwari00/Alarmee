@@ -1,9 +1,17 @@
 # WakeWalk — Walk to Dismiss Alarm System Design Specification
 
 **Date:** 2026-09-19  
-**Status:** Approved  
+**Status:** Approved for Implementation  
 **Target Platform:** Android (minSdk 26, compileSdk/targetSdk 35)  
 **Language/Framework:** Kotlin, Jetpack Compose, Material 3, Android Architecture Components, Hilt, Room, DataStore  
+
+---
+
+## 0. Prime Engineering Invariant
+
+> **Alarm reliability takes precedence over all other features. A failure of the UI must never terminate the active alarm session, audio, sensor processing, or challenge state.**
+> 
+> The `AlarmForegroundService` owns the active alarm session; `AlarmActivity` is strictly a presentation client.
 
 ---
 
@@ -31,7 +39,7 @@ The system is structured across four clearly decoupled layers with strict unidir
 UI Layer (Jetpack Compose & Material 3)
 ├── MainActivity (Navigation Compose: Home, Create/Edit, Statistics, Settings, Onboarding)
 └── AlarmActivity (Dedicated lockscreen Activity: setShowWhenLocked, setTurnScreenOn)
-       │ (Observes StateFlow only; pure presentation)
+       │ (Observes StateFlow only; pure presentation client)
        ▼
 Session & Domain Layer (Pure Kotlin, Zero Android/DI dependencies)
 ├── WakeSession (sessionId, alarmId, targetSteps, initialSensorSteps, currentSteps, status)
@@ -71,9 +79,9 @@ The domain engine contains **zero Android framework dependencies**, enabling com
 
 #### Data Models
 - `StepInput`:
-  - `CounterUpdate(val timestampNs: Long, val cumulativeSteps: Long)`
-  - `DetectorStep(val timestampNs: Long)`
-  - `AccelerometerCandidate(val timestampNs: Long, val motion: MotionSnapshot)`
+  - `CounterUpdate(val timestampNs: Long, val cumulativeSteps: Long)`: Handled via `StepAccumulator` calculating `max(0, cumulativeSteps - baseline)`.
+  - `DetectorStep(val timestampNs: Long)`: Discrete hardware step event.
+  - `AccelerometerCandidate(val timestampNs: Long, val motion: MotionSnapshot)`: Fallback candidate when hardware step sensors are unavailable.
 - `MotionState`: `WALKING`, `STATIONARY`, `SHAKING`, `UNKNOWN`
 - `MotionAssessment`: `state: MotionState`, `confidence: Float (0.0 .. 1.0)`, `timestampNs: Long`
 - `StepValidationResult`: `accepted: Boolean`, `reason: RejectionReason?`, `confidence: Float`
@@ -85,18 +93,19 @@ The domain engine contains **zero Android framework dependencies**, enabling com
   - `initialSensorSteps: Long`
   - `currentSteps: Int`
   - `status: AlarmStatus` (`SCHEDULED`, `TRIGGERED`, `RINGING`, `CHALLENGE_ACTIVE`, `CHALLENGE_COMPLETED`, `SNOOZED`, `MISSED`, `DISMISSED`, `EMERGENCY_DISMISSED`)
-  - `startedAtEpochMs: Long` (Wall clock for records)
-  - `startedRealtimeNs: Long` (Monotonic timestamp for durations)
+  - `startedAtEpochMs: Long` (Wall clock for history and display)
+  - `startedRealtimeNs: Long` (Monotonic timestamp for durations and timer thresholds)
   - `completedAtEpochMs: Long?`
   - `trackingMode: StepTrackingMode` (`HARDWARE_COUNTER`, `HARDWARE_DETECTOR`, `ACCELEROMETER_FALLBACK`, `UNAVAILABLE`)
 
 #### Anti-Cheat Movement Validation Heuristics
 `MovementValidationConfig`:
 - `minStepIntervalMs: Long = 320L` (Rejects unnatural high-frequency shaking > 3.1 Hz)
-- `maxStepIntervalMs: Long = 2500L` (Cadence timeout)
+- `maxAcceptedStepIntervalMs: Long = 2500L` (Used in fallback classifier to detect pauses vs continuous gait; never rejects a valid future step after a pause)
 - `minimumWalkingConfidence: Float = 0.55f`
 - `shakeConfidenceThreshold: Float = 0.70f`
-- Validates cyclical acceleration oscillation (~0.7G to 1.8G) against multi-axis chaotic spikes (> 3.0G across X/Y/Z) to distinguish genuine human walking from phone shaking or surface vibration.
+- Differentiates cyclical acceleration oscillation (~0.7G to 1.8G) against multi-axis chaotic spikes (> 3.0G across X/Y/Z) to distinguish genuine walking from phone shaking or vibrating surfaces.
+- Operates comfortably within standard Android motion sensor sampling rates (< 200 Hz), requiring **no** `HIGH_SAMPLING_RATE_SENSORS` permission.
 
 #### Emergency Dismissal Policy
 - `EmergencyDismissalAttempt`:
@@ -107,22 +116,25 @@ The domain engine contains **zero Android framework dependencies**, enabling com
 
 ### 3.2 Android System Integration & Lifecycle
 
-#### AlarmManager Scheduling
+#### AlarmManager Scheduling & Version Strategy
 - Uses `alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerTimeEpochMs, showPendingIntent), alarmPendingIntent)`.
 - Delivers precise alarm-clock scheduling capable of waking the device from deep Doze.
-- System displays the native alarm clock icon in the status bar and lock screen.
-- Declares `<uses-permission android:name="android.permission.USE_EXACT_ALARM" />`.
+- `AlarmClockInfo` provides system with alarm-clock metadata and a `showIntent`; system UI may surface alarm information according to device/system behavior (the app does not depend on a specific OEM's icon placement).
+- **Exact Alarm Strategy:**
+  - API 33+: `<uses-permission android:name="android.permission.USE_EXACT_ALARM" />` (Standard for alarm-clock apps, pre-granted).
+  - API 31–32 fallback: Handles `SCHEDULE_EXACT_ALARM` where required by platform compatibility.
 
 #### WakeLock & 5-Second Service Promotion Deadline
 - `AlarmReceiver.onReceive()` acquires a `PARTIAL_WAKE_LOCK` with a maximum safety timeout of 10 seconds.
 - It immediately calls `ContextCompat.startForegroundService()`.
 - `AlarmForegroundService.onCreate() / onStartCommand()` immediately calls `ServiceCompat.startForeground()` with a high-priority notification well within the mandatory Android 5-second deadline.
-- The receiver wake lock is released immediately once the service takes over. The service does **not** hold an indefinite wake lock.
+- The receiver wake lock is released immediately once the service promotes. The service does **not** hold an indefinite wake lock.
 
 #### Android 14/15 Foreground Service Type & Permissions
 - Declares `android:foregroundServiceType="health"` in `AndroidManifest.xml`.
 - Declares `android.permission.FOREGROUND_SERVICE` and `android.permission.FOREGROUND_SERVICE_HEALTH`.
 - Runtime prerequisite: `android.permission.ACTIVITY_RECOGNITION` requested during onboarding and settings diagnostics.
+- *Policy Note:* Verification that the final Play-distributed use of the health foreground-service type aligns with Google's active foreground service policies is noted for release preparation.
 
 #### Audio & Vibration Subsystem
 - Audio uses `MediaPlayer` with `AudioAttributes`:
@@ -130,9 +142,9 @@ The domain engine contains **zero Android framework dependencies**, enabling com
   - `contentType = AudioAttributes.CONTENT_TYPE_SONIFICATION`
 - Requests Audio Focus with `AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).setAudioAttributes(...)`.
 - Loops alarm sound continuously until the `ChallengeEngine` reaches completion or verified emergency dismissal.
-- Gradual volume ramp: Optional 10-second logarithmic or linear volume increase from 20% to 100%.
+- Gradual volume ramp: Optional 10-second volume increase from 20% to 100%.
 - Vibration uses `Vibrator` / `VibratorManager` with repeating waveform pulses.
-- Distinct milestone haptic on 25%, 50%, 75% steps, and triumphant vibration on 100% completion.
+- Distinct milestone haptics on 25%, 50%, 75% steps, and triumphant vibration on 100% completion.
 
 #### Full-Screen Intent (FSI) & Fallback Handling
 - On Android 14+ (API 34+), checks `notificationManager.canUseFullScreenIntent`.
@@ -178,7 +190,10 @@ The domain engine contains **zero Android framework dependencies**, enabling com
    - `status: AlarmStatus` (Room TypeConverter)
    - `lastUpdatedEpochMs: Long`
 
-   *Session Durability Guarantee:* Every accepted step and state transition is serialized and persisted to Room. If the service process is recreated, it reads this singleton row and restores the exact session without resetting baseline steps or accumulated progress.
+   *Session Durability & Collision Policy:*
+   - Every accepted step and state transition is serialized and persisted to Room.
+   - If the alarm service/process is recreated while a session remains active, the persisted `ActiveSessionEntity` enables deterministic reconstruction without resetting challenge progress. (The application does not assume Android will automatically recreate the service after arbitrary process termination).
+   - **One-Active-Session Collision Policy:** Only one active `WakeSession` is permitted. If another alarm fires while a `WakeSession` is active: do not overwrite the active session; record the new alarm execution appropriately; avoid starting a second challenge/audio engine.
 
 3. **`alarm_history` (`AlarmHistoryEntity`)**:
    - `id: Long` (PK, auto-generated)
@@ -193,13 +208,17 @@ The domain engine contains **zero Android framework dependencies**, enabling com
    - `durationSeconds: Long?`
    - `emergencyDismissed: Boolean`
 
-   *Atomic Completion Guarantee:*
+   *Idempotent Atomic Completion Transaction:*
    ```kotlin
-   db.withTransaction {
-       alarmHistoryDao.insert(historyEntity)
-       activeSessionDao.clearActiveSession()
+   // Guarded against double teardown from concurrent step completion and emergency action
+   suspend fun completeSession(historyEntity: AlarmHistoryEntity) {
+       db.withTransaction {
+           alarmHistoryDao.insert(historyEntity)
+           activeSessionDao.clearActiveSession()
+       }
    }
    ```
+   Followed by `AlarmSessionCoordinator`: stop sensors (idempotent), stop vibration, stop audio, abandon audio focus, post completion notification/state, and stop foreground service.
 
 #### DataStore (`UserPreferencesRepository`)
 - `emergencyDismissalMethod`: `TYPING_PHRASE` (default) vs `LONG_PRESS_5S`
@@ -220,30 +239,32 @@ The domain engine contains **zero Android framework dependencies**, enabling com
   - `OnboardingScreen`: 4-step introductory flow explaining physical walking requirement, permissions, and initial target configuration.
   - `HomeScreen`: Greeting, active streak banner, next scheduled alarm countdown pill, list of alarm cards with toggles, and FAB to add alarm.
   - `CreateEditAlarmScreen`: Time picker, label, 7-chip repeat days selector, quick step target chips (50, 100, 150, 200, 250, 300, 500) + custom slider, sound, vibration, and snooze options.
-  - `StatisticsScreen`: Weekly overview (completed vs emergency dismissed vs missed), streak indicator, average completion duration, and history list.
-  - `SettingsScreen`: Emergency dismissal method selector, theme selector, privacy commitment, and Permission & Hardware Diagnostics (Exact Alarms, Full-Screen Intent, Step Sensors, Notifications).
+  - `StatisticsScreen`: Weekly overview (distinguishing COMPLETED from EMERGENCY_DISMISSED and MISSED), streak indicator, average completion duration, and history list.
+  - `SettingsScreen`: Emergency dismissal method selector, theme selector, privacy commitment, and Permission & Hardware Diagnostics (distinguishing permission granted from hardware sensor availability).
 - **`AlarmActivity` (Dedicated Lockscreen Alarm UI):**
-  - Completely separate from normal navigation (back navigation, drawer, and swipe gestures are disabled).
+  - Strictly a presentation client observing `WakeSessionRepository`.
+  - Back navigation, drawers, and swipe gestures are disabled.
   - High-contrast OLED dark theme with vibrant amber/emerald accents.
   - Giant digital time and alarm label.
   - Large step progress: `83 / 150` with segmented milestone indicator (`0 ●──── 50 ●──── 100 ●──── 150 ●`) and smooth progress bar.
-  - Dynamic status text: "Keep walking...", with anti-cheat hints only when suspicious movement is detected.
+  - Dynamic status text: "Keep walking...", with anti-cheat feedback only when suspicious movement is detected.
+  - Sensor-unavailable notice when hardware sensors are absent and basic fallback is active.
   - Visually subordinate "Emergency Stop" button opening the safety dialog.
-  - Sensor unavailable banner if hardware sensors are absent and basic accelerometer fallback is active.
-  - Upon completion: immediate audio shutdown, triumphant haptic, brief closure card ("✓ You're awake! 153 steps in 1m 48s. Good morning ☀️"), and automatic activity finish.
+  - On completion: Service stops audio and records history immediately; Activity displays result card ("✓ You're awake! 153 steps in 1m 48s. Good morning ☀️") and finishes.
 
 ---
 
 ## 4. Verification & Testing Strategy
 
 1. **Pure Domain Unit Tests (JVM):**
-   - `StepAccumulatorTest`: Step counter baseline calculation, counter resets, detector increments.
-   - `MovementValidatorTest`: Human walking frequency vs rapid shaking (>3.5 Hz) rejection, stationary rejection, variance evaluation.
+   - `StepAccumulatorTest`: Baseline calculation for `TYPE_STEP_COUNTER`, counter resets, discrete `TYPE_STEP_DETECTOR` increments.
+   - `MovementValidatorTest`: Human walking frequency vs rapid shaking (>3.1 Hz) rejection, stationary rejection, variance evaluation.
    - `ChallengeEngineTest`: Step progression, session completion, emergency phrase verification, long-press timer validation.
    - `AlarmSchedulerTest`: Next alarm calculation across midnight, weekdays, weekends, leap days, and daylight saving shifts.
 2. **Persistence Unit Tests (Room with In-Memory Database):**
    - Transactional atomic completion test (history insert + active session delete).
-   - Session recovery test (reloading persisted `ActiveSessionEntity` after simulated service recreation).
+   - Session recovery test: Step 73 / 150 persisted → service interrupted → service recreated → resumes at 73 / 150.
+   - Crash/race test: Step 149 / 150 completion transaction with simulated concurrent emergency action → exactly one history record, zero active session rows.
 3. **Android Lifecycle & Service Tests:**
    - Verify `startForeground()` called within 5 seconds.
    - Verify sensor unregistration on session termination (zero leak).
@@ -251,12 +272,3 @@ The domain engine contains **zero Android framework dependencies**, enabling com
 4. **UI Tests (Compose Rule):**
    - Alarm creation flow and time picker formatting.
    - Alarm screen step counter animations and emergency dialog behavior.
-
----
-
-## 5. Specification Review Check
-
-- **Placeholder scan:** Zero "TBD" or "TODO" items. All models, tables, states, and flows are fully specified.
-- **Internal consistency:** Room transaction boundary, 7-bit repeat mask, single-active-session policy, and service-owned session lifecycle are consistent across all sections.
-- **Scope check:** Scope covers the complete MVP as defined in Section 45 of the PRD. Distance/Stay-active challenges and cloud sync are cleanly separated as v2/v3 extensions.
-- **Ambiguity check:** Exact-alarm permission strategy (`USE_EXACT_ALARM`), emergency dismissal default (typing `"I AM AWAKE"`), audio stream semantics (`USAGE_ALARM`), and sensor fallback hierarchy are explicitly codified.
