@@ -1,7 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Exact Alarm for Alarm-Clock app -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+
+    <!-- Boot & System Re-scheduling -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Audio, Vibration & WakeLock -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Notifications & Full-Screen Intent -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!-- Foreground Service & Health Physical Activity Step Tracking -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+
     <application
+        android:name=".WakeWalkApp"
+        android:allowBackup="true"
+        android:icon="@android:drawable/ic_lock_idle_alarm"
         android:label="WakeWalk"
-        android:supportsRtl="true">
+        android:roundIcon="@android:drawable/ic_lock_idle_alarm"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <!-- Main User Interface Activity -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Dedicated Lockscreen Full-Screen Alarm Activity -->
+        <activity
+            android:name=".ui.alarm.AlarmActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:screenOrientation="portrait"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance" />
+
+        <!-- Alarm Foreground Service (Hosts session, audio, sensors) -->
+        <service
+            android:name=".alarm.service.AlarmForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="health" />
+
+        <!-- Alarm Trigger Broadcast Receiver -->
+        <receiver
+            android:name=".alarm.receiver.AlarmReceiver"
+            android:exported="false" />
+
+        <!-- Device Reboot Receiver (Reschedules enabled alarms) -->
+        <receiver
+            android:name=".alarm.receiver.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Time & Timezone Change Receiver -->
+        <receiver
+            android:name=".alarm.receiver.TimeChangeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
     </application>
+
 </manifest>
