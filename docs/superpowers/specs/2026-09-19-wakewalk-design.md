@@ -98,9 +98,9 @@ The domain engine contains **zero Android framework dependencies**, enabling com
   - `completedAtEpochMs: Long?`
   - `trackingMode: StepTrackingMode` (`HARDWARE_COUNTER`, `HARDWARE_DETECTOR`, `ACCELEROMETER_FALLBACK`, `UNAVAILABLE`)
 
-#### Anti-Cheat Movement Validation Heuristics
-`MovementValidationConfig`:
-- `minStepIntervalMs: Long = 320L` (Rejects unnatural high-frequency shaking > 3.1 Hz)
+#### Anti-Cheat Movement Validation (Tunable Heuristics)
+All validation thresholds represent initial tunable heuristics for distinguishing genuine walking movement from shaking or resting vibration, and are not guaranteed physiological boundaries. They are kept configurable in `ValidationConfig` and open for validation and calibration through real-device testing:
+- `minStepIntervalMs: Long = 320L` (Initial heuristic flagging cadence > 3.1 Hz)
 - `maxAcceptedStepIntervalMs: Long = 2500L` (Used in fallback classifier to detect pauses vs continuous gait; never rejects a valid future step after a pause)
 - `minimumWalkingConfidence: Float = 0.55f`
 - `shakeConfidenceThreshold: Float = 0.70f`
