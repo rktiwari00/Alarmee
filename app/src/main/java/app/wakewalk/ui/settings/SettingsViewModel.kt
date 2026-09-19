@@ -7,6 +7,7 @@ import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.PowerManager
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.wakewalk.data.preferences.UserPreferences
@@ -44,17 +45,17 @@ class SettingsViewModel @Inject constructor(
             initialValue = UserPreferences()
         )
 
-    private val _diagnosticStatus = MutableStateFlow(refreshDiagnostics())
+    private val _diagnosticStatus = MutableStateFlow(checkDiagnostics())
     val diagnosticStatus: StateFlow<DiagnosticStatus> = _diagnosticStatus.asStateFlow()
 
-    fun refreshDiagnostics(): DiagnosticStatus {
+    private fun checkDiagnostics(): DiagnosticStatus {
         val exactAlarms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             alarmManager.canScheduleExactAlarms()
         } else {
             true
         }
 
-        val notifications = notificationManager.areNotificationsEnabled()
+        val notifications = NotificationManagerCompat.from(context).areNotificationsEnabled()
 
         val stepSensor = sensorManager?.let { sm ->
             sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER) != null ||
@@ -62,14 +63,26 @@ class SettingsViewModel @Inject constructor(
         } ?: false
 
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val batteryIgnored = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+        val batteryIgnored = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+            } catch (_: Throwable) {
+                false
+            }
+        } else {
+            true
+        }
 
-        val status = DiagnosticStatus(
+        return DiagnosticStatus(
             exactAlarmsAllowed = exactAlarms,
             notificationsEnabled = notifications,
             hardwareStepSensorAvailable = stepSensor,
             batteryOptimizationIgnored = batteryIgnored
         )
+    }
+
+    fun refreshDiagnostics(): DiagnosticStatus {
+        val status = checkDiagnostics()
         _diagnosticStatus.value = status
         return status
     }
