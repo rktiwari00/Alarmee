@@ -3,7 +3,7 @@
 
     <!-- Exact Alarm for Alarm-Clock app -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <!-- Boot & System Re-scheduling -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -16,8 +16,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
-    <!-- Foreground Service & Health Physical Activity Step Tracking -->
+    <!-- Foreground Service & Media Playback / Health Step Tracking -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
@@ -55,7 +56,7 @@
         <service
             android:name=".alarm.service.AlarmForegroundService"
             android:exported="false"
-            android:foregroundServiceType="health" />
+            android:foregroundServiceType="mediaPlayback|health" />
 
         <!-- Alarm Trigger Broadcast Receiver -->
         <receiver

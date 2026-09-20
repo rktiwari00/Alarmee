@@ -2,7 +2,6 @@ package app.wakewalk.ui.navigation
 
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
@@ -22,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -107,8 +105,7 @@ fun WakeWalkNavigation(
 
     Scaffold(
         bottomBar = {
-            // Show standard bottom bar on secondary top-level destinations; Home uses its signature floating pill
-            if (isTopLevelDestination && currentRoute != Screen.Home.route) {
+            if (isTopLevelDestination) {
                 NavigationBar {
                     bottomNavItems.forEach { item ->
                         val selected = currentRoute == item.route
@@ -139,7 +136,7 @@ fun WakeWalkNavigation(
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(if (currentRoute == Screen.Home.route) PaddingValues(0.dp) else innerPadding),
+            modifier = Modifier.padding(innerPadding),
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() }
         ) {
@@ -165,12 +162,6 @@ fun WakeWalkNavigation(
                     },
                     onNavigateToEdit = { alarmId ->
                         navController.navigate(Screen.CreateEditAlarm.createRoute(alarmId))
-                    },
-                    onNavigateToStats = {
-                        navController.navigate(Screen.Statistics.route)
-                    },
-                    onNavigateToSettings = {
-                        navController.navigate(Screen.Settings.route)
                     }
                 )
             }

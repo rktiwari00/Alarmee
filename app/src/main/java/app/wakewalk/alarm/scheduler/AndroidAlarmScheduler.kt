@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import app.wakewalk.alarm.receiver.AlarmReceiver
 import app.wakewalk.data.local.entity.AlarmEntity
 import app.wakewalk.domain.repository.AlarmRepository
@@ -55,6 +56,12 @@ class AndroidAlarmScheduler @Inject constructor(
             repeatDaysMask = alarm.repeatDaysMask
         )
 
+        val remainingSec = (triggerTimeEpochMs - System.currentTimeMillis()) / 1000
+        Log.d(
+            "WakeWalk",
+            "AndroidAlarmScheduler: Scheduling alarm ${alarm.id} (${alarm.hour}:${alarm.minute}) to trigger at $triggerTimeEpochMs (in ${remainingSec / 60}m ${remainingSec % 60}s)"
+        )
+
         val triggerIntent = Intent(context, AlarmReceiver::class.java).apply {
             action = ACTION_TRIGGER_ALARM
             putExtra(EXTRA_ALARM_ID, alarm.id)
@@ -73,7 +80,7 @@ class AndroidAlarmScheduler @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Show Intent for system UI
+        // Show Intent for system UI / Lockscreen Clock
         val showIntent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent()
         val pendingShowIntent = PendingIntent.getActivity(
             context,
@@ -85,13 +92,77 @@ class AndroidAlarmScheduler @Inject constructor(
         try {
             val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTimeEpochMs, pendingShowIntent)
             alarmManager.setAlarmClock(alarmClockInfo, pendingTriggerIntent)
-        } catch (_: SecurityException) {
-            // Graceful fallback if exact alarm permission is missing
-            alarmManager.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                triggerTimeEpochMs,
-                pendingTriggerIntent
-            )
+            Log.d("WakeWalk", "AndroidAlarmScheduler: setAlarmClock succeeded for alarm ${alarm.id}")
+        } catch (e: SecurityException) {
+            Log.w("WakeWalk", "AndroidAlarmScheduler: setAlarmClock failed with SecurityException, trying setExactAndAllowWhileIdle", e)
+            try {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTimeEpochMs,
+                    pendingTriggerIntent
+                )
+                Log.d("WakeWalk", "AndroidAlarmScheduler: setExactAndAllowWhileIdle succeeded for alarm ${alarm.id}")
+            } catch (exactError: SecurityException) {
+                Log.w("WakeWalk", "AndroidAlarmScheduler: setExactAndAllowWhileIdle failed, falling back to setAndAllowWhileIdle", exactError)
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTimeEpochMs,
+                    pendingTriggerIntent
+                )
+            }
+        }
+    }
+
+    override fun scheduleTestAlarm(delaySeconds: Int) {
+        val triggerTimeEpochMs = System.currentTimeMillis() + (delaySeconds * 1000L)
+        Log.d("WakeWalk", "AndroidAlarmScheduler: Scheduling TEST alarm for $delaySeconds seconds from now")
+
+        val triggerIntent = Intent(context, AlarmReceiver::class.java).apply {
+            action = ACTION_TRIGGER_ALARM
+            putExtra(EXTRA_ALARM_ID, 999999L)
+            putExtra(EXTRA_TARGET_STEPS, 10)
+            putExtra(EXTRA_ALARM_LABEL, "Test Alarm")
+            putExtra(EXTRA_VIBRATION, true)
+            putExtra(EXTRA_GRADUAL_VOLUME, false)
+            putExtra(EXTRA_SNOOZE_ENABLED, false)
+            putExtra(EXTRA_SNOOZE_DURATION, 1)
+        }
+
+        val pendingTriggerIntent = PendingIntent.getBroadcast(
+            context,
+            999999,
+            triggerIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val showIntent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent()
+        val pendingShowIntent = PendingIntent.getActivity(
+            context,
+            999999,
+            showIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        try {
+            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTimeEpochMs, pendingShowIntent)
+            alarmManager.setAlarmClock(alarmClockInfo, pendingTriggerIntent)
+            Log.d("WakeWalk", "AndroidAlarmScheduler: Test alarm scheduled via setAlarmClock")
+        } catch (e: SecurityException) {
+            try {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTimeEpochMs,
+                    pendingTriggerIntent
+                )
+                Log.d("WakeWalk", "AndroidAlarmScheduler: Test alarm scheduled via setExactAndAllowWhileIdle")
+            } catch (_: SecurityException) {
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTimeEpochMs,
+                    pendingTriggerIntent
+                )
+                Log.d("WakeWalk", "AndroidAlarmScheduler: Test alarm scheduled via setAndAllowWhileIdle")
+            }
         }
     }
 
@@ -108,6 +179,7 @@ class AndroidAlarmScheduler @Inject constructor(
         if (pendingIntent != null) {
             alarmManager.cancel(pendingIntent)
             pendingIntent.cancel()
+            Log.d("WakeWalk", "AndroidAlarmScheduler: Canceled alarm $alarmId")
         }
     }
 

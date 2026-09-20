@@ -1,33 +1,29 @@
 package app.wakewalk.ui.home
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,205 +31,108 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.wakewalk.data.local.entity.AlarmEntity
 import app.wakewalk.ui.components.AlarmCard
-import app.wakewalk.ui.components.FloatingBottomPill
-import app.wakewalk.ui.components.TimelineWaveform
-import app.wakewalk.ui.components.WeekdaySelectorRow
-import kotlinx.coroutines.delay
-import java.time.LocalDate
-import java.time.LocalTime
 
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
     onNavigateToCreate: () -> Unit,
     onNavigateToEdit: (Long) -> Unit,
-    onNavigateToStats: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val alarms by viewModel.alarms.collectAsState()
     val streakDays by viewModel.streakDays.collectAsState()
-    val playingAlarmId by viewModel.playingAlarmId.collectAsState()
-
     val nextAlarmText = viewModel.getNextAlarmTimeRemaining(alarms)
-    val nextAlarmMinute = viewModel.getNextAlarmMinuteOfDay(alarms)
 
-    var selectedDay by remember { mutableStateOf(LocalDate.now().dayOfWeek) }
     var alarmToDelete by remember { mutableStateOf<AlarmEntity?>(null) }
 
-    // Live current time fallback if no alarm
-    var currentTime by remember { mutableStateOf(LocalTime.now()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1000)
-            currentTime = LocalTime.now()
-        }
-    }
-
-    // Determine hero time to display: next upcoming alarm if exists, else current time
-    val (heroHour, heroMinute) = if (nextAlarmMinute != null) {
-        Pair(nextAlarmMinute / 60, nextAlarmMinute % 60)
-    } else {
-        Pair(currentTime.hour, currentTime.minute)
-    }
-
-    val displayHour = when (val h = heroHour % 12) {
-        0 -> 12
-        else -> h
-    }
-    val heroHourString = String.format("%02d", displayHour)
-    val heroMinuteString = String.format("%02d", heroMinute)
-
-    Box(modifier = modifier.fillMaxSize()) {
+    Scaffold(
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onNavigateToCreate,
+                icon = { Icon(Icons.Default.Add, contentDescription = "Add Alarm") },
+                text = { Text("Add Alarm") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
+        },
+        modifier = modifier.fillMaxSize()
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
                 .padding(horizontal = 20.dp)
         ) {
-            // Top Header: "Alarm" + Settings & Streak badge
+            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp, bottom = 8.dp),
+                    .padding(top = 24.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onNavigateToSettings
-                    )
-                ) {
+                Column {
                     Text(
-                        text = "Alarm",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        text = "Good morning ☀️",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold
                     )
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Settings",
-                        tint = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier
-                            .padding(start = 4.dp)
-                            .size(24.dp)
+                    Text(
+                        text = "Earn your wake-up",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (streakDays > 0) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-                        ) {
-                            Text(
-                                text = "🔥 $streakDays Days",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
-
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier.size(36.dp)
+                if (streakDays > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Settings,
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
+                        Text(
+                            text = "🔥 $streakDays Days",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }
                 }
             }
 
-            // Hero Digital Time (matching the Pinterest reference: bold hour, lighter minute)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp, bottom = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+            // Next Alarm Banner
+            if (nextAlarmText != null) {
+                ElevatedCard(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
                 ) {
-                    Text(
-                        text = "$heroHourString:",
-                        fontSize = 76.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        letterSpacing = (-2).sp
-                    )
-                    Text(
-                        text = heroMinuteString,
-                        fontSize = 76.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-                        letterSpacing = (-2).sp
-                    )
-                }
-
-                // Countdown Subtitle
-                val subtitleText = if (nextAlarmText != null) {
-                    buildAnnotatedString {
-                        append("The next alarm clock in ")
-                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)) {
-                            append(nextAlarmText.removePrefix("in "))
-                        }
-                    }
-                } else {
-                    buildAnnotatedString {
-                        append("No upcoming alarms scheduled")
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(text = "⏰", fontSize = 20.sp)
+                        Text(
+                            text = nextAlarmText,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
-
-                Text(
-                    text = subtitleText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
             }
 
-            // 24-Hour Activity / Timeline Waveform
-            TimelineWaveform(
-                alarms = alarms,
-                nextAlarmMinuteOfDay = nextAlarmMinute,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp)
-            )
-
-            // Weekday Chips Row
-            WeekdaySelectorRow(
-                selectedDay = selectedDay,
-                onDaySelected = { selectedDay = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 10.dp)
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Alarm Cards List
+            // Alarms List
             if (alarms.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -260,14 +159,12 @@ fun HomeScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    contentPadding = PaddingValues(bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(alarms, key = { it.id }) { alarm ->
                         AlarmCard(
                             alarm = alarm,
-                            isPlaying = playingAlarmId == alarm.id,
-                            onPlayToggle = { viewModel.toggleSoundPreview(alarm) },
                             onToggle = { viewModel.toggleAlarm(alarm) },
                             onClick = { onNavigateToEdit(alarm.id) },
                             onLongClick = { alarmToDelete = alarm }
@@ -276,16 +173,6 @@ fun HomeScreen(
                 }
             }
         }
-
-        // Floating Bottom Capsule Bar
-        FloatingBottomPill(
-            onAddClick = onNavigateToCreate,
-            onCalendarClick = onNavigateToStats,
-            statusText = if (nextAlarmText != null) "Next: $nextAlarmText" else "WakeWalk • Ready",
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 20.dp)
-        )
 
         // Delete confirmation dialog
         alarmToDelete?.let { alarm ->

@@ -45,7 +45,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun WakeWalkTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Default to false to preserve our signature Canary Yellow aesthetic
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

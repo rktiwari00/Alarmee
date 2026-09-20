@@ -1,11 +1,15 @@
 package app.wakewalk.alarm.service
 
+import android.Manifest
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import app.wakewalk.alarm.audio.AudioController
 import app.wakewalk.alarm.notification.AlarmNotificationManager
 import app.wakewalk.alarm.scheduler.AndroidAlarmScheduler
@@ -17,6 +21,7 @@ import app.wakewalk.domain.model.AlarmStatus
 import app.wakewalk.domain.model.WakeSession
 import app.wakewalk.domain.movement.MovementValidator
 import app.wakewalk.domain.repository.WakeSessionRepository
+import app.wakewalk.ui.alarm.AlarmActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -76,18 +81,46 @@ class AlarmForegroundService : Service() {
             currentSteps = challengeEngine.currentSession?.currentSteps ?: 0
         )
 
+        val hasActivityRecognition = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACTIVITY_RECOGNITION
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+
         val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+            if (hasActivityRecognition) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+            } else {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            }
         } else {
             0
         }
 
-        ServiceCompat.startForeground(
-            this,
-            NOTIFICATION_ID,
-            notification,
-            foregroundServiceType
-        )
+        try {
+            ServiceCompat.startForeground(
+                this,
+                NOTIFICATION_ID,
+                notification,
+                foregroundServiceType
+            )
+            Log.d("WakeWalk", "AlarmForegroundService: Started foreground with type=$foregroundServiceType")
+        } catch (e: Exception) {
+            Log.e("WakeWalk", "Failed to startForeground with type $foregroundServiceType, falling back to 0", e)
+            try {
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    0
+                )
+            } catch (fallbackError: Exception) {
+                Log.e("WakeWalk", "Fatal error starting foreground service", fallbackError)
+            }
+        }
     }
 
     private fun handleStartAlarm(intent: Intent) {
@@ -103,6 +136,19 @@ class AlarmForegroundService : Service() {
         val vibrationEnabled = intent.getBooleanExtra(AndroidAlarmScheduler.EXTRA_VIBRATION, true)
         val gradualVolume = intent.getBooleanExtra(AndroidAlarmScheduler.EXTRA_GRADUAL_VOLUME, true)
         startedAtEpochMs = System.currentTimeMillis()
+
+        // Also launch AlarmActivity explicitly so challenge UI appears immediately
+        try {
+            val activityIntent = Intent(this, AlarmActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            startActivity(activityIntent)
+            Log.d("WakeWalk", "AlarmForegroundService: Launched AlarmActivity directly")
+        } catch (e: Exception) {
+            Log.e("WakeWalk", "AlarmForegroundService: Failed to launch AlarmActivity directly", e)
+        }
 
         serviceScope.launch {
             // Check if recoverable session exists in Room
@@ -141,8 +187,14 @@ class AlarmForegroundService : Service() {
 
             // Start Sensor Adapter
             sensorAdapter.start { stepInput, motionSnapshot ->
+                val prevSteps = challengeEngine.currentSession?.currentSteps ?: 0
                 val result = challengeEngine.processStep(stepInput, motionSnapshot)
-                if (result.accepted) {
+                val newSteps = challengeEngine.currentSession?.currentSteps ?: 0
+                Log.d(
+                    "WakeWalk",
+                    "AlarmForegroundService: processStep accepted=${result.accepted}, reason=${result.reason}, steps=$newSteps/$targetSteps"
+                )
+                if (result.accepted && newSteps > prevSteps) {
                     val updatedSession = challengeEngine.currentSession ?: return@start
                     serviceScope.launch {
                         wakeSessionRepository.updateSession(updatedSession)
@@ -155,6 +207,7 @@ class AlarmForegroundService : Service() {
                         }
 
                         if (updatedSession.isComplete) {
+                            Log.d("WakeWalk", "AlarmForegroundService: Target steps reached! Silencing alarm.")
                             completeSession(AlarmStatus.CHALLENGE_COMPLETED)
                         }
                     }
