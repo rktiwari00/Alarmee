@@ -20,7 +20,10 @@ data class CreateEditAlarmUiState(
     val minute: Int = 0,
     val label: String = "Wake up",
     val repeatDaysMask: Int = 0,
+    val challengeType: ChallengeType = ChallengeType.WALK,
     val targetSteps: Int = 150,
+    val qrCodePayload: String? = null,
+    val qrCodeLabel: String? = null,
     val vibrationEnabled: Boolean = true,
     val gradualVolume: Boolean = true,
     val snoozeEnabled: Boolean = false,
@@ -47,7 +50,10 @@ class CreateEditAlarmViewModel @Inject constructor(
                     minute = alarm.minute,
                     label = alarm.label,
                     repeatDaysMask = alarm.repeatDaysMask,
+                    challengeType = alarm.challengeType,
                     targetSteps = alarm.targetSteps,
+                    qrCodePayload = alarm.qrCodePayload,
+                    qrCodeLabel = alarm.qrCodeLabel,
                     vibrationEnabled = alarm.vibrationEnabled,
                     gradualVolume = alarm.gradualVolume,
                     snoozeEnabled = alarm.snoozeEnabled,
@@ -77,6 +83,33 @@ class CreateEditAlarmViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(repeatDaysMask = mask)
     }
 
+    fun setChallengeType(type: ChallengeType) {
+        val currentSteps = _uiState.value.targetSteps
+        val adjustedSteps = when {
+            type == ChallengeType.QR_CODE && currentSteps > 50 -> 15 // Default 15 steps for QR walk-to-target
+            type == ChallengeType.WALK && currentSteps < 15 -> 150
+            else -> currentSteps
+        }
+        _uiState.value = _uiState.value.copy(
+            challengeType = type,
+            targetSteps = adjustedSteps
+        )
+    }
+
+    fun setQrCodeReference(payload: String, label: String?) {
+        _uiState.value = _uiState.value.copy(
+            qrCodePayload = payload,
+            qrCodeLabel = label?.ifBlank { null }
+        )
+    }
+
+    fun clearQrCodeReference() {
+        _uiState.value = _uiState.value.copy(
+            qrCodePayload = null,
+            qrCodeLabel = null
+        )
+    }
+
     fun setTargetSteps(steps: Int) {
         _uiState.value = _uiState.value.copy(targetSteps = steps)
     }
@@ -93,7 +126,13 @@ class CreateEditAlarmViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(snoozeEnabled = enabled)
     }
 
+    fun isSaveAllowed(): Boolean {
+        val state = _uiState.value
+        return state.challengeType != ChallengeType.QR_CODE || !state.qrCodePayload.isNullOrBlank()
+    }
+
     fun saveAlarm(onSuccess: () -> Unit) {
+        if (!isSaveAllowed()) return
         val state = _uiState.value
         viewModelScope.launch {
             val alarmEntity = AlarmEntity(
@@ -103,8 +142,10 @@ class CreateEditAlarmViewModel @Inject constructor(
                 label = state.label.ifBlank { "Wake up" },
                 isEnabled = true,
                 repeatDaysMask = state.repeatDaysMask,
-                challengeType = ChallengeType.WALK,
+                challengeType = state.challengeType,
                 targetSteps = state.targetSteps,
+                qrCodePayload = state.qrCodePayload,
+                qrCodeLabel = state.qrCodeLabel,
                 vibrationEnabled = state.vibrationEnabled,
                 gradualVolume = state.gradualVolume,
                 snoozeEnabled = state.snoozeEnabled,

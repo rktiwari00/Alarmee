@@ -1,30 +1,48 @@
 package app.wakewalk.ui.create
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,9 +53,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import app.wakewalk.domain.model.ChallengeType
+import app.wakewalk.ui.components.CameraBarcodeScanner
 import app.wakewalk.ui.components.RepeatDaySelector
 import app.wakewalk.ui.components.StepTargetChips
 import app.wakewalk.ui.components.TimePickerModal
@@ -56,6 +81,11 @@ fun CreateEditAlarmScreen(
 
     val state by viewModel.uiState.collectAsState()
     var showTimePicker by remember { mutableStateOf(false) }
+    var showScannerDialog by remember { mutableStateOf(false) }
+    var showLabelPromptDialog by remember { mutableStateOf(false) }
+    var scannedTempCode by remember { mutableStateOf("") }
+    var labelInput by remember { mutableStateOf("") }
+    var isTorchOn by remember { mutableStateOf(false) }
 
     val amPm = if (state.hour >= 12) "PM" else "AM"
     val displayHour = when (val h = state.hour % 12) {
@@ -63,6 +93,7 @@ fun CreateEditAlarmScreen(
         else -> h
     }
     val timeFormatted = String.format("%02d:%02d", displayHour, state.minute)
+    val isSaveAllowed = viewModel.isSaveAllowed()
 
     Scaffold(
         topBar = {
@@ -76,6 +107,7 @@ fun CreateEditAlarmScreen(
                 actions = {
                     Button(
                         onClick = { viewModel.saveAlarm(onNavigateBack) },
+                        enabled = isSaveAllowed,
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
                         Text("Save")
@@ -147,11 +179,171 @@ fun CreateEditAlarmScreen(
 
             HorizontalDivider()
 
-            // Step Target Chips & Slider
-            StepTargetChips(
-                selectedTarget = state.targetSteps,
-                onTargetSelected = { viewModel.setTargetSteps(it) }
-            )
+            // Challenge Mode Selector
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Wake-Up Challenge",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = state.challengeType == ChallengeType.WALK,
+                        onClick = { viewModel.setChallengeType(ChallengeType.WALK) },
+                        label = { Text("🚶 Walk Steps") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = state.challengeType == ChallengeType.QR_CODE,
+                        onClick = { viewModel.setChallengeType(ChallengeType.QR_CODE) },
+                        label = { Text("📷 QR / Barcode") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // Challenge Specific Content
+            if (state.challengeType == ChallengeType.WALK) {
+                StepTargetChips(
+                    selectedTarget = state.targetSteps,
+                    onTargetSelected = { viewModel.setTargetSteps(it) }
+                )
+            } else {
+                // QR / Barcode Challenge Registration & Settings
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (state.qrCodePayload.isNullOrBlank()) {
+                        // Unregistered Gate Card
+                        OutlinedCard(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Physical Code Required",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                                Text(
+                                    text = "To prevent turning off alarms from bed, you must scan a physical QR code or household barcode (e.g. toothpaste in bathroom, kitchen coffee jar) before saving.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Button(
+                                    onClick = { showScannerDialog = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(Icons.Default.QrCodeScanner, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Scan Reference Code Now")
+                                }
+                            }
+                        }
+                    } else {
+                        // Registered Target Card
+                        ElevatedCard(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.elevatedCardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = state.qrCodeLabel ?: "Registered Target",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                    TextButton(onClick = { showScannerDialog = true }) {
+                                        Text("Re-scan")
+                                    }
+                                }
+                                Text(
+                                    text = "Code: ${state.qrCodePayload}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // Walk-to-Target Step Gate (Anti-Cheat Dual Verification)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Walk to Target",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Minimum steps required before code can be scanned",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = "${state.targetSteps} steps",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(10, 15, 25, 30).forEach { steps ->
+                                FilterChip(
+                                    selected = state.targetSteps == steps,
+                                    onClick = { viewModel.setTargetSteps(steps) },
+                                    label = { Text("$steps") },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             HorizontalDivider()
 
@@ -209,6 +401,7 @@ fun CreateEditAlarmScreen(
             }
         }
 
+        // Time Picker Modal
         if (showTimePicker) {
             TimePickerModal(
                 initialHour = state.hour,
@@ -218,6 +411,80 @@ fun CreateEditAlarmScreen(
                     showTimePicker = false
                 },
                 onDismiss = { showTimePicker = false }
+            )
+        }
+
+        // Live Scanner Sheet / Dialog for Reference Code
+        if (showScannerDialog) {
+            Dialog(
+                onDismissRequest = { showScannerDialog = false },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    CameraBarcodeScanner(
+                        isTorchEnabled = isTorchOn,
+                        onTorchToggle = { isTorchOn = !isTorchOn },
+                        instructionText = "Scan any household QR or Barcode",
+                        onBarcodeDetected = { detectedCode ->
+                            scannedTempCode = detectedCode
+                            labelInput = ""
+                            showScannerDialog = false
+                            showLabelPromptDialog = true
+                        }
+                    )
+
+                    // Close Scanner Button
+                    IconButton(
+                        onClick = { showScannerDialog = false },
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(24.dp)
+                            .size(44.dp)
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                    }
+                }
+            }
+        }
+
+        // Label Prompt Dialog
+        if (showLabelPromptDialog) {
+            AlertDialog(
+                onDismissRequest = { showLabelPromptDialog = false },
+                title = { Text("Code Registered!") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Scanned: $scannedTempCode",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedTextField(
+                            value = labelInput,
+                            onValueChange = { labelInput = it },
+                            label = { Text("Location Name (optional)") },
+                            placeholder = { Text("e.g. Bathroom Sink, Coffee Jar") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.setQrCodeReference(scannedTempCode, labelInput)
+                            showLabelPromptDialog = false
+                        }
+                    ) {
+                        Text("Save Reference")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLabelPromptDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
             )
         }
     }
