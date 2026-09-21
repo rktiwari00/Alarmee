@@ -10,6 +10,7 @@ import app.wakewalk.data.preferences.UserPreferencesRepository
 import app.wakewalk.domain.emergency.EmergencyDismissalAttempt
 import app.wakewalk.domain.emergency.EmergencyDismissalPolicy
 import app.wakewalk.domain.model.AlarmStatus
+import app.wakewalk.domain.model.ChallengeType
 import app.wakewalk.domain.model.WakeSession
 import app.wakewalk.domain.repository.WakeSessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,11 +23,21 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class QrScanEvaluation(
+    val isComplete: Boolean,
+    val errorMessage: String? = null
+)
+
 data class AlarmUiState(
     val session: WakeSession? = null,
     val isCompleted: Boolean = false,
     val completedSteps: Int = 0,
     val targetSteps: Int = 150,
+    val challengeType: ChallengeType = ChallengeType.WALK,
+    val targetQrPayload: String? = null,
+    val targetQrLabel: String? = null,
+    val qrScanError: String? = null,
+    val isTorchEnabled: Boolean = false,
     val durationSeconds: Long = 0L,
     val isEmergencyDismissed: Boolean = false,
     val emergencyDialogVisible: Boolean = false,
@@ -61,7 +72,9 @@ class AlarmViewModel @Inject constructor(
             wakeSessionRepository.activeSessionFlow.collect { session ->
                 if (session != null) {
                     val wasCompleted = session.status == AlarmStatus.CHALLENGE_COMPLETED ||
-                            session.currentSteps >= session.targetSteps
+                            (session.status == AlarmStatus.CHALLENGE_ACTIVE &&
+                                    _uiState.value.challengeType == ChallengeType.WALK &&
+                                    session.currentSteps >= session.targetSteps)
                     val wasEmergency = session.status == AlarmStatus.EMERGENCY_DISMISSED
                     val duration = if (session.startedAtEpochMs > 0) {
                         (System.currentTimeMillis() - session.startedAtEpochMs) / 1000L
@@ -71,9 +84,13 @@ class AlarmViewModel @Inject constructor(
 
                     _uiState.value = _uiState.value.copy(
                         session = session,
-                        isCompleted = wasCompleted,
+                        isCompleted = wasCompleted || _uiState.value.isCompleted,
                         completedSteps = session.currentSteps,
-                        targetSteps = session.targetSteps,
+                        targetSteps = if (_uiState.value.targetSteps > 0 && _uiState.value.challengeType == ChallengeType.QR_CODE) {
+                            _uiState.value.targetSteps
+                        } else {
+                            session.targetSteps
+                        },
                         durationSeconds = duration,
                         isEmergencyDismissed = wasEmergency
                     )
@@ -85,6 +102,48 @@ class AlarmViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun initChallengeData(
+        type: ChallengeType,
+        targetSteps: Int,
+        qrPayload: String?,
+        qrLabel: String?
+    ) {
+        _uiState.value = _uiState.value.copy(
+            challengeType = type,
+            targetSteps = if (targetSteps > 0) targetSteps else _uiState.value.targetSteps,
+            targetQrPayload = qrPayload,
+            targetQrLabel = qrLabel
+        )
+    }
+
+    fun onBarcodeScanned(scannedCode: String) {
+        if (_uiState.value.isCompleted) return
+        val currentState = _uiState.value
+        val eval = evaluateQrCodeScan(
+            scannedCode = scannedCode,
+            targetPayload = currentState.targetQrPayload,
+            currentSteps = currentState.completedSteps,
+            targetSteps = currentState.targetSteps
+        )
+        if (eval.isComplete) {
+            _uiState.value = _uiState.value.copy(
+                isCompleted = true,
+                qrScanError = null
+            )
+            sendServiceAction(AlarmForegroundService.ACTION_COMPLETE_CHALLENGE)
+        } else {
+            _uiState.value = _uiState.value.copy(
+                qrScanError = eval.errorMessage
+            )
+        }
+    }
+
+    fun toggleTorch() {
+        _uiState.value = _uiState.value.copy(
+            isTorchEnabled = !_uiState.value.isTorchEnabled
+        )
     }
 
     fun showEmergencyDialog() {
@@ -143,5 +202,29 @@ class AlarmViewModel @Inject constructor(
             this.action = action
         }
         context.startService(intent)
+    }
+
+    companion object {
+        fun evaluateQrCodeScan(
+            scannedCode: String,
+            targetPayload: String?,
+            currentSteps: Int,
+            targetSteps: Int
+        ): QrScanEvaluation {
+            if (currentSteps < targetSteps) {
+                val remaining = targetSteps - currentSteps
+                return QrScanEvaluation(
+                    isComplete = false,
+                    errorMessage = "You're still in bed! Walk $remaining more steps before scanning."
+                )
+            }
+            if (targetPayload.isNullOrBlank() || scannedCode != targetPayload) {
+                return QrScanEvaluation(
+                    isComplete = false,
+                    errorMessage = "Wrong code scanned! Look for your registered item."
+                )
+            }
+            return QrScanEvaluation(isComplete = true)
+        }
     }
 }

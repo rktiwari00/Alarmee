@@ -18,6 +18,7 @@ import app.wakewalk.alarm.vibration.VibrationController
 import app.wakewalk.data.local.entity.AlarmHistoryEntity
 import app.wakewalk.domain.challenge.ChallengeEngine
 import app.wakewalk.domain.model.AlarmStatus
+import app.wakewalk.domain.model.ChallengeType
 import app.wakewalk.domain.model.WakeSession
 import app.wakewalk.domain.movement.MovementValidator
 import app.wakewalk.domain.repository.WakeSessionRepository
@@ -37,6 +38,7 @@ class AlarmForegroundService : Service() {
 
     companion object {
         const val ACTION_START_ALARM = "app.wakewalk.ACTION_START_ALARM"
+        const val ACTION_COMPLETE_CHALLENGE = "app.wakewalk.action.COMPLETE_CHALLENGE"
         const val ACTION_EMERGENCY_DISMISS = "app.wakewalk.ACTION_EMERGENCY_DISMISS"
         const val ACTION_SNOOZE = "app.wakewalk.ACTION_SNOOZE"
         const val NOTIFICATION_ID = 1001
@@ -54,6 +56,7 @@ class AlarmForegroundService : Service() {
 
     private var currentAlarmId: Long = 0L
     private var currentLabel: String = "Alarm"
+    private var currentChallengeType: ChallengeType = ChallengeType.WALK
     private var targetSteps: Int = 150
     private var startedAtEpochMs: Long = 0L
 
@@ -67,6 +70,7 @@ class AlarmForegroundService : Service() {
 
         when (action) {
             ACTION_START_ALARM -> handleStartAlarm(intent)
+            ACTION_COMPLETE_CHALLENGE -> handleCompleteChallenge()
             ACTION_EMERGENCY_DISMISS -> handleEmergencyDismiss()
             ACTION_SNOOZE -> handleSnooze()
         }
@@ -133,6 +137,12 @@ class AlarmForegroundService : Service() {
         currentAlarmId = intent.getLongExtra(AndroidAlarmScheduler.EXTRA_ALARM_ID, 0L)
         currentLabel = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_ALARM_LABEL) ?: "Wake Up"
         targetSteps = intent.getIntExtra(AndroidAlarmScheduler.EXTRA_TARGET_STEPS, 150)
+        val challengeTypeName = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_CHALLENGE_TYPE)
+        currentChallengeType = challengeTypeName?.let {
+            runCatching { ChallengeType.valueOf(it) }.getOrNull()
+        } ?: ChallengeType.WALK
+        val qrPayload = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_QR_PAYLOAD)
+        val qrLabel = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_QR_LABEL)
         val vibrationEnabled = intent.getBooleanExtra(AndroidAlarmScheduler.EXTRA_VIBRATION, true)
         val gradualVolume = intent.getBooleanExtra(AndroidAlarmScheduler.EXTRA_GRADUAL_VOLUME, true)
         startedAtEpochMs = System.currentTimeMillis()
@@ -143,6 +153,12 @@ class AlarmForegroundService : Service() {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(AndroidAlarmScheduler.EXTRA_ALARM_ID, currentAlarmId)
+                putExtra(AndroidAlarmScheduler.EXTRA_TARGET_STEPS, targetSteps)
+                putExtra(AndroidAlarmScheduler.EXTRA_ALARM_LABEL, currentLabel)
+                putExtra(AndroidAlarmScheduler.EXTRA_CHALLENGE_TYPE, currentChallengeType.name)
+                putExtra(AndroidAlarmScheduler.EXTRA_QR_PAYLOAD, qrPayload)
+                putExtra(AndroidAlarmScheduler.EXTRA_QR_LABEL, qrLabel)
             }
             startActivity(activityIntent)
             Log.d("WakeWalk", "AlarmForegroundService: Launched AlarmActivity directly")
@@ -207,8 +223,12 @@ class AlarmForegroundService : Service() {
                         }
 
                         if (updatedSession.isComplete) {
-                            Log.d("WakeWalk", "AlarmForegroundService: Target steps reached! Silencing alarm.")
-                            completeSession(AlarmStatus.CHALLENGE_COMPLETED)
+                            if (currentChallengeType == ChallengeType.WALK) {
+                                Log.d("WakeWalk", "AlarmForegroundService: Target steps reached! Silencing alarm.")
+                                completeSession(AlarmStatus.CHALLENGE_COMPLETED)
+                            } else {
+                                Log.d("WakeWalk", "AlarmForegroundService: Walk-to-target steps reached for QR challenge. Awaiting physical QR code scan.")
+                            }
                         }
                     }
                 }
@@ -224,6 +244,16 @@ class AlarmForegroundService : Service() {
         )
         val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
         nm.notify(NOTIFICATION_ID, notification)
+    }
+
+    private fun handleCompleteChallenge() {
+        Log.d("WakeWalk", "AlarmForegroundService: handleCompleteChallenge() called via ACTION_COMPLETE_CHALLENGE")
+        challengeEngine.currentSession?.let { session ->
+            challengeEngine.restoreSession(
+                session.copy(status = AlarmStatus.CHALLENGE_COMPLETED)
+            )
+        }
+        completeSession(AlarmStatus.CHALLENGE_COMPLETED)
     }
 
     private fun handleEmergencyDismiss() {

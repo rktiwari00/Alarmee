@@ -26,6 +26,9 @@ class AndroidAlarmScheduler @Inject constructor(
         const val EXTRA_ALARM_ID = "extra_alarm_id"
         const val EXTRA_TARGET_STEPS = "extra_target_steps"
         const val EXTRA_ALARM_LABEL = "extra_alarm_label"
+        const val EXTRA_CHALLENGE_TYPE = "extra_challenge_type"
+        const val EXTRA_QR_PAYLOAD = "extra_qr_payload"
+        const val EXTRA_QR_LABEL = "extra_qr_label"
         const val EXTRA_VIBRATION = "extra_vibration"
         const val EXTRA_GRADUAL_VOLUME = "extra_gradual_volume"
         const val EXTRA_SNOOZE_ENABLED = "extra_snooze_enabled"
@@ -67,6 +70,9 @@ class AndroidAlarmScheduler @Inject constructor(
             putExtra(EXTRA_ALARM_ID, alarm.id)
             putExtra(EXTRA_TARGET_STEPS, alarm.targetSteps)
             putExtra(EXTRA_ALARM_LABEL, alarm.label)
+            putExtra(EXTRA_CHALLENGE_TYPE, alarm.challengeType.name)
+            putExtra(EXTRA_QR_PAYLOAD, alarm.qrCodePayload)
+            putExtra(EXTRA_QR_LABEL, alarm.qrCodeLabel)
             putExtra(EXTRA_VIBRATION, alarm.vibrationEnabled)
             putExtra(EXTRA_GRADUAL_VOLUME, alarm.gradualVolume)
             putExtra(EXTRA_SNOOZE_ENABLED, alarm.snoozeEnabled)
