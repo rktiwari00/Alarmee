@@ -1,5 +1,6 @@
 package app.wakewalk.ui.alarm
 
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
@@ -8,6 +9,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import app.wakewalk.alarm.scheduler.AndroidAlarmScheduler
+import app.wakewalk.domain.model.ChallengeType
 import app.wakewalk.ui.theme.WakeWalkTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -18,6 +21,8 @@ class AlarmActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        handleIntent(intent)
 
         // Lock to portrait orientation
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -55,5 +60,31 @@ class AlarmActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent == null) return
+        val challengeTypeStr = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_CHALLENGE_TYPE)
+        val challengeType = try {
+            if (challengeTypeStr != null) ChallengeType.valueOf(challengeTypeStr) else ChallengeType.WALK
+        } catch (e: Exception) {
+            ChallengeType.WALK
+        }
+        val targetSteps = intent.getIntExtra(AndroidAlarmScheduler.EXTRA_TARGET_STEPS, 150)
+        val qrPayload = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_QR_PAYLOAD)
+        val qrLabel = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_QR_LABEL)
+
+        viewModel.initChallengeData(
+            type = challengeType,
+            targetSteps = targetSteps,
+            qrPayload = qrPayload,
+            qrLabel = qrLabel
+        )
     }
 }

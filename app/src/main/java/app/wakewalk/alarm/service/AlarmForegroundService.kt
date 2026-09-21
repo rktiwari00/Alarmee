@@ -57,6 +57,8 @@ class AlarmForegroundService : Service() {
     private var currentAlarmId: Long = 0L
     private var currentLabel: String = "Alarm"
     private var currentChallengeType: ChallengeType = ChallengeType.WALK
+    private var currentQrPayload: String? = null
+    private var currentQrLabel: String? = null
     private var targetSteps: Int = 150
     private var startedAtEpochMs: Long = 0L
 
@@ -82,7 +84,10 @@ class AlarmForegroundService : Service() {
         val notification = notificationManager.buildRingingNotification(
             alarmLabel = currentLabel,
             targetSteps = targetSteps,
-            currentSteps = challengeEngine.currentSession?.currentSteps ?: 0
+            currentSteps = challengeEngine.currentSession?.currentSteps ?: 0,
+            challengeType = currentChallengeType,
+            qrPayload = currentQrPayload,
+            qrLabel = currentQrLabel
         )
 
         val hasActivityRecognition = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -143,6 +148,8 @@ class AlarmForegroundService : Service() {
         } ?: ChallengeType.WALK
         val qrPayload = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_QR_PAYLOAD)
         val qrLabel = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_QR_LABEL)
+        currentQrPayload = qrPayload
+        currentQrLabel = qrLabel
         val vibrationEnabled = intent.getBooleanExtra(AndroidAlarmScheduler.EXTRA_VIBRATION, true)
         val gradualVolume = intent.getBooleanExtra(AndroidAlarmScheduler.EXTRA_GRADUAL_VOLUME, true)
         startedAtEpochMs = System.currentTimeMillis()
@@ -240,7 +247,10 @@ class AlarmForegroundService : Service() {
         val notification = notificationManager.buildRingingNotification(
             alarmLabel = currentLabel,
             targetSteps = targetSteps,
-            currentSteps = currentSteps
+            currentSteps = currentSteps,
+            challengeType = currentChallengeType,
+            qrPayload = currentQrPayload,
+            qrLabel = currentQrLabel
         )
         val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
         nm.notify(NOTIFICATION_ID, notification)

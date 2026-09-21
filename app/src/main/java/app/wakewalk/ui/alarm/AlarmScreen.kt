@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -55,7 +56,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.wakewalk.data.preferences.UserPreferences
+import app.wakewalk.domain.model.ChallengeType
 import app.wakewalk.domain.model.StepTrackingMode
+import app.wakewalk.ui.components.CameraBarcodeScanner
 import kotlinx.coroutines.delay
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -92,6 +95,8 @@ fun AlarmScreen(
                 CompletionCard(
                     steps = uiState.completedSteps,
                     durationSeconds = uiState.durationSeconds,
+                    challengeType = uiState.challengeType,
+                    qrLabel = uiState.targetQrLabel,
                     onDone = onDismissActivity,
                     modifier = Modifier.align(Alignment.Center)
                 )
@@ -105,140 +110,20 @@ fun AlarmScreen(
             }
             else -> {
                 // Active Ringing & Challenge View
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Top: Current Time & Sensor Banner
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(top = 32.dp)
-                    ) {
-                        Text(
-                            text = currentTimeString,
-                            style = MaterialTheme.typography.displayLarge.copy(fontSize = 64.sp),
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "WALK TO DISMISS",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 2.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        // Sensor fallback notice
-                        val mode = uiState.session?.trackingMode
-                        if (mode == StepTrackingMode.ACCELEROMETER_FALLBACK) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2411)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Warning,
-                                        contentDescription = null,
-                                        tint = Color(0xFFFFB74D),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Accelerometer fallback active. Keep in hand.",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFFFFB74D)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Middle: Giant Step Progress & Milestones
-                    val currentSteps = uiState.session?.currentSteps ?: 0
-                    val targetSteps = uiState.session?.targetSteps ?: 150
-                    val progressRatio = (currentSteps.toFloat() / targetSteps.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
-                    val animatedProgress by animateFloatAsState(targetValue = progressRatio, label = "stepProgress")
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(
-                                progress = { animatedProgress },
-                                modifier = Modifier.size(240.dp),
-                                strokeWidth = 14.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                                trackColor = Color(0xFF222222),
-                                strokeCap = StrokeCap.Round
-                            )
-
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.DirectionsWalk,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(36.dp)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "$currentSteps",
-                                    style = MaterialTheme.typography.displayMedium.copy(fontSize = 52.sp),
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "/ $targetSteps STEPS",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = Color.Gray,
-                                    letterSpacing = 1.5.sp
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(28.dp))
-
-                        // Gait & movement guidance
-                        Text(
-                            text = if (currentSteps > 0) "Walking detected — keep moving!" else "Get out of bed and start walking...",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium,
-                            color = if (currentSteps > 0) MaterialTheme.colorScheme.primary else Color.LightGray,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Shaking phone will not register. Genuine steps required.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.DarkGray,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-
-                    // Bottom: Subordinate Emergency Stop
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                    ) {
-                        TextButton(
-                            onClick = { viewModel.showEmergencyDialog() },
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF888888))
-                        ) {
-                            Text(
-                                text = "Emergency Stop",
-                                style = MaterialTheme.typography.bodyMedium,
-                                letterSpacing = 1.sp
-                            )
-                        }
-                    }
+                if (uiState.challengeType == ChallengeType.QR_CODE) {
+                    QrChallengeRingingContent(
+                        uiState = uiState,
+                        currentTimeString = currentTimeString,
+                        onEmergencyClick = { viewModel.showEmergencyDialog() },
+                        onBarcodeDetected = { viewModel.onBarcodeScanned(it) },
+                        onTorchToggle = { viewModel.toggleTorch() }
+                    )
+                } else {
+                    WalkChallengeRingingContent(
+                        uiState = uiState,
+                        currentTimeString = currentTimeString,
+                        onEmergencyClick = { viewModel.showEmergencyDialog() }
+                    )
                 }
             }
         }
@@ -259,9 +144,392 @@ fun AlarmScreen(
 }
 
 @Composable
+private fun WalkChallengeRingingContent(
+    uiState: AlarmUiState,
+    currentTimeString: String,
+    onEmergencyClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Top: Current Time & Sensor Banner
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(top = 32.dp)
+        ) {
+            Text(
+                text = currentTimeString,
+                style = MaterialTheme.typography.displayLarge.copy(fontSize = 64.sp),
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "WALK TO DISMISS",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 2.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // Sensor fallback notice
+            val mode = uiState.session?.trackingMode
+            if (mode == StepTrackingMode.ACCELEROMETER_FALLBACK) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2411)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFFFB74D),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Accelerometer fallback active. Keep in hand.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFFFB74D)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Middle: Giant Step Progress & Milestones
+        val currentSteps = uiState.session?.currentSteps ?: 0
+        val targetSteps = uiState.session?.targetSteps ?: 150
+        val progressRatio = (currentSteps.toFloat() / targetSteps.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+        val animatedProgress by animateFloatAsState(targetValue = progressRatio, label = "stepProgress")
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier.size(240.dp),
+                    strokeWidth = 14.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color(0xFF222222),
+                    strokeCap = StrokeCap.Round
+                )
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.DirectionsWalk,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "$currentSteps",
+                        style = MaterialTheme.typography.displayMedium.copy(fontSize = 52.sp),
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "/ $targetSteps STEPS",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color.Gray,
+                        letterSpacing = 1.5.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Gait & movement guidance
+            Text(
+                text = if (currentSteps > 0) "Walking detected — keep moving!" else "Get out of bed and start walking...",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = if (currentSteps > 0) MaterialTheme.colorScheme.primary else Color.LightGray,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Shaking phone will not register. Genuine steps required.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.DarkGray,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        // Bottom: Subordinate Emergency Stop
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        ) {
+            TextButton(
+                onClick = onEmergencyClick,
+                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF888888))
+            ) {
+                Text(
+                    text = "Emergency Stop",
+                    style = MaterialTheme.typography.bodyMedium,
+                    letterSpacing = 1.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QrChallengeRingingContent(
+    uiState: AlarmUiState,
+    currentTimeString: String,
+    onEmergencyClick: () -> Unit,
+    onBarcodeDetected: (String) -> Unit,
+    onTorchToggle: () -> Unit
+) {
+    val currentSteps = uiState.completedSteps
+    val targetSteps = uiState.targetSteps.coerceAtLeast(1)
+    val hasMetStepRequirement = currentSteps >= targetSteps
+    val stepsRemaining = (targetSteps - currentSteps).coerceAtLeast(0)
+    val progressRatio = (currentSteps.toFloat() / targetSteps.toFloat()).coerceIn(0f, 1f)
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Top Section: Time, Target Badge & Walk Progress
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+        ) {
+            Text(
+                text = currentTimeString,
+                style = MaterialTheme.typography.displayMedium.copy(fontSize = 38.sp),
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "WALK & SCAN TO DISMISS",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Target Info & Step Meter Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = uiState.targetQrLabel ?: "Target Code",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
+
+                        Text(
+                            text = "$currentSteps / $targetSteps steps",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (hasMetStepRequirement) Color(0xFF81C784) else Color(0xFFFFB74D)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LinearProgressIndicator(
+                        progress = { progressRatio },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = if (hasMetStepRequirement) Color(0xFF81C784) else Color(0xFFFFB74D),
+                        trackColor = Color(0xFF333333)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Dual Verification Status Banner
+            if (!hasMetStepRequirement) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2411)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.DirectionsWalk,
+                            contentDescription = null,
+                            tint = Color(0xFFFFB74D),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Walk to your target item first",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFB74D)
+                            )
+                            Text(
+                                text = "$stepsRemaining more steps required to unlock scanning.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFFFD54F).copy(alpha = 0.85f)
+                            )
+                        }
+                    }
+                }
+            } else {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF142B1A)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = Color(0xFF81C784),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Step requirement complete!",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF81C784)
+                            )
+                            Text(
+                                text = "Point camera at target code to dismiss alarm.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFA5D6A7)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Error Banner if scan was rejected
+            if (uiState.qrScanError != null) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF3B1818)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFFF6B6B),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = uiState.qrScanError,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFFF8A80)
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Live Barcode / QR Camera Viewfinder
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(20.dp))
+        ) {
+            CameraBarcodeScanner(
+                modifier = Modifier.fillMaxSize(),
+                isTorchEnabled = uiState.isTorchEnabled,
+                onTorchToggle = onTorchToggle,
+                onBarcodeDetected = onBarcodeDetected,
+                reticleBorderColor = if (hasMetStepRequirement) MaterialTheme.colorScheme.primary else Color(0xFFFFB74D),
+                instructionText = if (hasMetStepRequirement) {
+                    "Point at ${uiState.targetQrLabel ?: "target code"}"
+                } else {
+                    "Walk $stepsRemaining more steps to unlock"
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Bottom Emergency Option
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
+        ) {
+            TextButton(
+                onClick = onEmergencyClick,
+                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF888888))
+            ) {
+                Text(
+                    text = "Emergency Stop",
+                    style = MaterialTheme.typography.bodyMedium,
+                    letterSpacing = 1.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun CompletionCard(
     steps: Int,
     durationSeconds: Long,
+    challengeType: ChallengeType = ChallengeType.WALK,
+    qrLabel: String? = null,
     onDone: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -299,10 +567,17 @@ private fun CompletionCard(
             val seconds = durationSeconds % 60
             val timeString = if (minutes > 0) "${minutes}m ${seconds}s" else "${seconds}s"
 
+            val summaryText = if (challengeType == ChallengeType.QR_CODE) {
+                "$steps steps walked & ${qrLabel ?: "code"} verified in $timeString"
+            } else {
+                "$steps steps completed in $timeString"
+            }
+
             Text(
-                text = "$steps steps completed in $timeString",
+                text = summaryText,
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color.LightGray
+                color = Color.LightGray,
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(8.dp))
