@@ -12,13 +12,16 @@ import app.wakewalk.data.local.entity.ActiveSessionEntity
 import app.wakewalk.data.local.entity.AlarmEntity
 import app.wakewalk.data.local.entity.AlarmHistoryEntity
 
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
 @Database(
     entities = [
         AlarmEntity::class,
         ActiveSessionEntity::class,
         AlarmHistoryEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -36,6 +39,15 @@ abstract class WakeWalkDatabase : RoomDatabase() {
         withTransaction {
             alarmHistoryDao().insertHistory(history)
             activeSessionDao().clearActiveSession()
+        }
+    }
+
+    companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE alarms ADD COLUMN qrCodePayload TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE alarms ADD COLUMN qrCodeLabel TEXT DEFAULT NULL")
+            }
         }
     }
 }

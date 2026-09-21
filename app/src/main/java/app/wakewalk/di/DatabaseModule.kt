@@ -24,7 +24,10 @@ object DatabaseModule {
             context,
             WakeWalkDatabase::class.java,
             "wakewalk.db"
-        ).build()
+        )
+            .addMigrations(WakeWalkDatabase.MIGRATION_1_2)
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides

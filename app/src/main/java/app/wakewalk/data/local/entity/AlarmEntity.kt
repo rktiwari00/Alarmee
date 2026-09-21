@@ -14,6 +14,8 @@ data class AlarmEntity(
     val repeatDaysMask: Int, // 7-bit mask: Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32, Sun=64. 0 = Once
     val challengeType: ChallengeType = ChallengeType.WALK,
     val targetSteps: Int = 150,
+    val qrCodePayload: String? = null,
+    val qrCodeLabel: String? = null,
     val soundUri: String? = null,
     val vibrationEnabled: Boolean = true,
     val gradualVolume: Boolean = true,

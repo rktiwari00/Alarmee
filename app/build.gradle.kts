@@ -69,6 +69,12 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    // CameraX & ML Kit Barcode Scanning
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.barcode.scanning)
+
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
