@@ -1,6 +1,13 @@
 # WakeWalk — Walk to Dismiss Alarm (Android)
 
-WakeWalk is a modern, reliable Android alarm application designed for disciplined mornings. When an alarm rings, it requires the user to physically get out of bed and walk a designated number of steps (e.g., 150 steps) before it can be dismissed. The ringing screen has **no dismiss button**.
+[![Website](https://img.shields.io/badge/Website-Visit%20Official%20Site-6366F1?style=for-the-badge&logo=googlechrome&logoColor=white)](https://rktiwari00.github.io/Alarmee/)
+[![Latest Release](https://img.shields.io/github/v/release/rktiwari00/Alarmee?style=for-the-badge&color=10B981)](https://github.com/rktiwari00/Alarmee/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-yellow?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/rktiwari00)
+
+**🌐 Official Website & Live Simulator:** [https://rktiwari00.github.io/Alarmee/](https://rktiwari00.github.io/Alarmee/)
+
+WakeWalk is a modern, reliable Android alarm application designed for disciplined mornings. When an alarm rings, it requires the user to physically get out of bed and walk a designated number of steps (e.g., 150 steps) or scan a registered household barcode before it can be dismissed. The ringing screen has **no dismiss button**.
 
 ---
 
