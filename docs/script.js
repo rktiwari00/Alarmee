@@ -190,4 +190,26 @@ document.addEventListener('DOMContentLoaded', () => {
       demoAudioHint.textContent = '⏹ Alarm audio silenced.';
     });
   }
+
+  // --- GA4 Event Tracking for Conversions ---
+  function trackEvent(eventName, eventParams = {}) {
+    if (typeof gtag === 'function') {
+      gtag('event', eventName, eventParams);
+    }
+  }
+
+  const trackBtn = (id, eventName, params) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', () => trackEvent(eventName, params));
+    }
+  };
+
+  trackBtn('nav-download-btn', 'download_apk', { location: 'navbar' });
+  trackBtn('hero-download-btn', 'download_apk', { location: 'hero' });
+  trackBtn('hero-source-btn', 'view_source', { location: 'hero' });
+  trackBtn('github-star-btn', 'star_github', { location: 'navbar' });
+  trackBtn('coffee-btn', 'support_coffee_click', { method: 'buymeacoffee' });
+  trackBtn('github-sponsor-btn', 'support_sponsor_click', { method: 'github_sponsors' });
 });
+
