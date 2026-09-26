@@ -102,7 +102,7 @@
       <div class="hero-text">
         <div class="badge-pill">
           <span class="badge-dot"></span>
-          <span>Open Source • Android 12–15 • 100% Free & Ad-Free</span>
+          <span>Open Source • Android 12&#45;15 • 100% Free & Ad-Free</span>
         </div>
         <h1 class="hero-title">The Alarm That <span class="gradient-text">Actually Gets You</span> Out Of Bed.</h1>
         <p class="hero-subtitle">
@@ -177,6 +177,11 @@
               <p class="anti-cheat-status">✓ Anti-Cheat: Authentic Cadence (1.8 Hz)</p>
             </div>
 
+            <div class="mockup-volume-pill" id="heroVolumePill">
+              <span class="pill-dot"></span>
+              <span id="heroVolumeText">🚶 30% Volume (Walking Active)</span>
+            </div>
+
             <button class="mockup-interact-btn" id="heroSimulateStepBtn">
               🚶 Simulate Step (+1)
             </button>
@@ -224,7 +229,7 @@
           <ul class="feature-list">
             <li>
               <span class="icon-good">✓</span>
-              <span><strong>Phone Call Ringtone:</strong> Triggers instinctive neurological alertness because phone calls signal urgent interaction.</span>
+              <span><strong>Phone Call & Categorized Sounds:</strong> Triggers instinctive neurological alertness with urgent calls or jarring sirens.</span>
             </li>
             <li>
               <span class="icon-good">✓</span>
@@ -232,7 +237,7 @@
             </li>
             <li>
               <span class="icon-good">✓</span>
-              <span><strong>Physical Household QR Code:</strong> Requires walking across your home to scan your coffee jar or bathroom sink barcode.</span>
+              <span><strong>10-Step Ducking & 8s Watchdog:</strong> Volume drops to 30% when walking, but surges back to 100% if you stop for 8 seconds.</span>
             </li>
             <li>
               <span class="icon-good">✓</span>
@@ -259,8 +264,8 @@
               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
             </svg>
           </div>
-          <h3 class="feature-title">Phone Call Ringtone</h3>
-          <p class="feature-desc">Defaults to your phone's active incoming ringtone. Sounds via the dedicated system Alarm stream so DND and silent profiles cannot mute it.</p>
+          <h3 class="feature-title">Urgent Phone Call Alarm</h3>
+          <p class="feature-desc">Defaults to an incoming phone call ringtone on the alarm stream. Triggers instinctive neurological wakefulness because phone calls signal urgent interaction.</p>
         </div>
 
         <div class="feature-box">
@@ -272,7 +277,7 @@
             </svg>
           </div>
           <h3 class="feature-title">Anti-Cheat Step Counter</h3>
-          <p class="feature-desc">Utilizes hardware step sensors and 3D accelerometer physics. Rejects rapid bed shaking or vibrating phone cheats with cadence validation.</p>
+          <p class="feature-desc">Utilizes hardware step sensors and 3D accelerometer physics. Rejects rapid bed shaking or vibrating phone cheats with cadence and interval validation.</p>
         </div>
 
         <div class="feature-box">
@@ -285,17 +290,7 @@
             </svg>
           </div>
           <h3 class="feature-title">Household QR / Barcode Gate</h3>
-          <p class="feature-desc">Scan any barcode in your home (toothpaste in bathroom, coffee in kitchen). You cannot silence the alarm without standing in that room.</p>
-        </div>
-
-        <div class="feature-box">
-          <div class="feature-icon icon-shield">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">Keyguard & Lockscreen Bypass</h3>
-          <p class="feature-desc">Wakes your screen and shows the full-screen challenge immediately on top of the lockscreen without needing your pin or biometric unlock.</p>
+          <p class="feature-desc">Scan any barcode in your home (toothpaste in bathroom, coffee in kitchen). You cannot silence the alarm without physically standing in that room.</p>
         </div>
 
         <div class="feature-box">
@@ -305,8 +300,45 @@
               <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
             </svg>
           </div>
-          <h3 class="feature-title">Gentle 10s Volume Ramping</h3>
-          <p class="feature-desc">Smoothly ramps up from 20% to 100% volume over 10 seconds. Enforces a volume floor so accidentally lowered sliders won't silence it.</p>
+          <h3 class="feature-title">100% Volume & 10-Step Ducking</h3>
+          <p class="feature-desc">Enforces true 100% maximum hardware volume on start. Once you walk 10 authentic steps, volume smoothly ducks down to 30% to give your ears and household relief.</p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-icon icon-shield">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <h3 class="feature-title">8-Second Anti-Slacking Watchdog</h3>
+          <p class="feature-desc">If you stop walking or sit back down for 8 seconds, the background watchdog detects the stall and ramps the volume immediately back to 100% until you resume.</p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-icon icon-music" style="color: #8B5CF6;">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+          </div>
+          <h3 class="feature-title">Curated Sound Categories</h3>
+          <p class="feature-desc">Bundled lightweight sound bank (<1 MB total) featuring ⚡ Harsh klaxons & bugles, 🌿 Smooth harmonic piano & sunrise chimes, and 📞 Urgent phone ringtones.</p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-icon icon-random" style="color: #EC4899;">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 3 21 3 21 8"></polyline>
+              <line x1="4" y1="20" x2="21" y2="3"></line>
+              <polyline points="21 16 21 21 16 21"></polyline>
+              <line x1="15" y1="15" x2="21" y2="21"></line>
+              <line x1="4" y1="4" x2="9" y2="9"></line>
+            </svg>
+          </div>
+          <h3 class="feature-title">Anti-Habituation Randomizer</h3>
+          <p class="feature-desc">Automatically rotates your morning alarm tone every single day (Harsh, Smooth, or All). Eliminates the brain habituation that causes deep sleepers to tune out alarms.</p>
         </div>
 
         <div class="feature-box">
@@ -318,7 +350,7 @@
             </svg>
           </div>
           <h3 class="feature-title">Emergency Dismissal Safety</h3>
-          <p class="feature-desc">In case of an injury or real-world emergency, type "I AM AWAKE" to immediately dismiss. Never blocks system 911/SOS emergency calls.</p>
+          <p class="feature-desc">In case of an injury or real-world emergency, type "I AM AWAKE" or hold for 5 seconds to dismiss. System 911/SOS emergency calls remain completely unobstructed.</p>
         </div>
       </div>
     </div>
@@ -343,8 +375,8 @@
         <div class="demo-tab-pane active" id="walk-tab">
           <div class="demo-content-grid">
             <div class="demo-controls">
-              <h3>Real-Time Step Accumulator</h3>
-              <p>WakeWalk checks each step timestamp. Steps spaced closer than 320ms are identified as frantic phone shaking and rejected.</p>
+              <h3>Real-Time Step Accumulator & Dynamic Volume</h3>
+              <p>WakeWalk checks each step timestamp. Steps spaced closer than 320ms are flagged as frantic shaking and rejected. Walking 10 genuine steps drops volume to 30%!</p>
               
               <div class="demo-metric-row">
                 <div class="demo-metric">
@@ -361,12 +393,19 @@
                 </div>
               </div>
 
+              <!-- Live Volume Status Badge in Simulator -->
+              <div class="simulator-volume-pill" id="simVolumePill">
+                <span class="pill-dot"></span>
+                <span id="simVolumeText">🔊 100% Hardcore Volume</span>
+              </div>
+
               <div class="btn-group">
-                <button class="btn btn-primary" id="demoWalkStepBtn">🚶 Take Authentic Step</button>
+                <button class="btn btn-primary" id="demoWalkStepBtn">🚶 Take Authentic Step (+10)</button>
                 <button class="btn btn-outline" id="demoShakeCheatBtn">⚡ Try Shaking Phone</button>
+                <button class="btn btn-warning" id="demoPauseWatchdogBtn" style="border: 1px solid #F59E0B; color: #F59E0B; background: rgba(245, 158, 11, 0.1);">⏱️ Pause 8s (Watchdog)</button>
                 <button class="btn btn-secondary" id="demoResetBtn">Reset</button>
               </div>
-              <p class="demo-hint" id="demoLogText">Click "Take Authentic Step" to simulate waking up.</p>
+              <p class="demo-hint" id="demoLogText">Click "Take Authentic Step" to simulate waking up and ducking volume.</p>
             </div>
 
             <div class="demo-visualizer">
@@ -423,24 +462,33 @@
         <div class="demo-tab-pane" id="audio-tab">
           <div class="demo-content-grid">
             <div class="demo-controls">
-              <h3>Phone Call Ringtone Stream</h3>
-              <p>Normal alarm chimes are easily ignored. WakeWalk plays your device's actual incoming ringtone over <code>USAGE_ALARM</code>.</p>
+              <h3>Curated Sound Bank & Volume Ducking</h3>
+              <p>Sample bundled tones across categories. Notice how walking 10 steps automatically ducks the hardcore volume to 30% relief.</p>
               
+              <!-- Sound Category Selector -->
+              <div class="sound-category-picker" id="soundCategoryPicker">
+                <button class="sound-cat-btn active" data-sound="phone">📞 Phone Call</button>
+                <button class="sound-cat-btn" data-sound="harsh">⚡ Harsh (Klaxon)</button>
+                <button class="sound-cat-btn" data-sound="smooth">🌿 Smooth (Piano)</button>
+                <button class="sound-cat-btn" data-sound="random">🎲 Daily Random</button>
+              </div>
+
               <div class="volume-ramp-card">
                 <div class="volume-header">
-                  <span>Gradual Volume Ramping (0s – 10s)</span>
-                  <span id="volumeRampLevel">20% Volume</span>
+                  <span id="volumeStatusTitle">Volume: Hardcore Max Level</span>
+                  <span id="volumeRampLevel">100% Volume</span>
                 </div>
                 <div class="progress-bar-bg">
-                  <div class="progress-bar-fill" id="volumeRampBar" style="width: 20%;"></div>
+                  <div class="progress-bar-fill" id="volumeRampBar" style="width: 100%; background: linear-gradient(90deg, #6366F1, #F43F5E);"></div>
                 </div>
               </div>
 
               <div class="btn-group">
-                <button class="btn btn-primary" id="demoPlayRingtoneBtn">▶ Simulate Alarm Ringing</button>
-                <button class="btn btn-outline" id="demoStopRingtoneBtn">⏹ Silence Alarm</button>
+                <button class="btn btn-primary" id="demoPlayRingtoneBtn">▶ Play Sound Preview</button>
+                <button class="btn btn-outline" id="demoDuckVolumeBtn">🚶 Duck Volume (30%)</button>
+                <button class="btn btn-secondary" id="demoStopRingtoneBtn">⏹ Stop Sound</button>
               </div>
-              <p class="demo-hint" id="demoAudioHint">Click to simulate the incoming phone call tone.</p>
+              <p class="demo-hint" id="demoAudioHint">Select a category and click "Play Sound Preview" to audition.</p>
             </div>
 
             <div class="demo-visualizer">
@@ -505,6 +553,36 @@
       </div>
 
       <div class="faq-accordion" id="faqAccordion">
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>How does walking volume ducking and the 8-second watchdog work?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="faq-answer">
+            <p>When an alarm rings, it starts at <strong>100% maximum hardware volume</strong> to ensure you cannot sleep through it. Once you physically walk <strong>10 verified steps</strong>, the volume smoothly ducks down to <strong>30%</strong> (relief reward) so you don't wake family or suffer ear fatigue while finishing your steps. However, if you sit back down or stop walking for <strong>8 seconds</strong>, the background watchdog detects the stall and ramps the volume right back up to 100% until you resume walking.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>What are the sound categories, and how does daily tone randomization work?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="faq-answer">
+            <p>WakeWalk includes a curated built-in sound bank (<1 MB total) with 3 categories: <strong>⚡ Harsh / Intense</strong> (klaxons, bugles, overdrive sirens for heavy sleepers), <strong>🌿 Smooth / Gentle</strong> (piano melodies, ambient sunrise pads, celestial chimes), and <strong>📞 Urgent Phone Call</strong> (incoming ringtones). With <strong>Daily Randomization</strong>, you can select <em>Randomize (Harsh)</em>, <em>Randomize (Smooth)</em>, or <em>Randomize (All)</em>—the app automatically picks a fresh tone every single morning, eliminating subconscious brain habituation.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>Can I preview alarm sounds before setting an alarm?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="faq-answer">
+            <p><strong>Yes.</strong> In the alarm creation and editing screen, tapping the Sound selector opens a categorized dialog. Every track has an instant play/pause audition button using an isolated audio channel so you can sample and compare tones without setting off a real alarm.</p>
+          </div>
+        </div>
+
         <div class="faq-item">
           <button class="faq-question" aria-expanded="false">
             <span>Will WakeWalk ring if my phone is on Silent or Do Not Disturb (DND)?</span>

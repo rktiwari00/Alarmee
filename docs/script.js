@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const heroSimulateStepBtn = document.getElementById('heroSimulateStepBtn');
   const heroStepCount = document.getElementById('heroStepCount');
   const heroProgressBar = document.getElementById('heroProgressBar');
+  const heroVolumePill = document.getElementById('heroVolumePill');
+  const heroVolumeText = document.getElementById('heroVolumeText');
   let heroSteps = 48;
   const heroTarget = 150;
 
@@ -33,9 +35,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const pct = (heroSteps / heroTarget) * 100;
         heroProgressBar.style.width = `${pct}%`;
 
+        if (heroVolumePill && heroVolumeText) {
+          if (heroSteps >= 10 && heroSteps < heroTarget) {
+            heroVolumePill.className = 'mockup-volume-pill ducked';
+            heroVolumeText.textContent = '🚶 30% Volume (Walking Active)';
+          }
+        }
+
         if (heroSteps >= heroTarget) {
           heroSimulateStepBtn.textContent = '🎉 Goal Reached! Alarm Silenced';
           heroSimulateStepBtn.style.background = '#10B981';
+          if (heroVolumePill && heroVolumeText) {
+            heroVolumePill.className = 'mockup-volume-pill';
+            heroVolumeText.textContent = '✓ Challenge Complete';
+          }
         }
       }
     });
@@ -59,25 +72,42 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // --- Tab 1: Step Accumulator Simulation ---
+  // --- Tab 1: Step Accumulator & Dynamic Volume Simulation ---
   const demoWalkStepBtn = document.getElementById('demoWalkStepBtn');
   const demoShakeCheatBtn = document.getElementById('demoShakeCheatBtn');
+  const demoPauseWatchdogBtn = document.getElementById('demoPauseWatchdogBtn');
   const demoResetBtn = document.getElementById('demoResetBtn');
   const demoStepVal = document.getElementById('demoStepVal');
   const demoCadenceStatus = document.getElementById('demoCadenceStatus');
   const demoLogText = document.getElementById('demoLogText');
   const demoCircleProgress = document.getElementById('demoCircleProgress');
   const demoPercentText = document.getElementById('demoPercentText');
+  const simVolumePill = document.getElementById('simVolumePill');
+  const simVolumeText = document.getElementById('simVolumeText');
 
   let currentSteps = 0;
   const targetSteps = 150;
   let lastStepTimestamp = 0;
+  let watchdogTimeout = null;
 
   function updateProgressUI() {
     demoStepVal.textContent = currentSteps;
     const pct = Math.min(100, Math.round((currentSteps / targetSteps) * 100));
     demoPercentText.textContent = `${pct}%`;
     demoCircleProgress.setAttribute('stroke-dasharray', `${pct}, 100`);
+
+    if (simVolumePill && simVolumeText) {
+      if (currentSteps === 0) {
+        simVolumePill.className = 'simulator-volume-pill';
+        simVolumeText.textContent = '🔊 100% Hardcore Volume';
+      } else if (currentSteps >= targetSteps) {
+        simVolumePill.className = 'simulator-volume-pill ducked';
+        simVolumeText.textContent = '🎉 Silenced (Goal Reached)';
+      } else if (currentSteps >= 10) {
+        simVolumePill.className = 'simulator-volume-pill ducked';
+        simVolumeText.textContent = '🚶 30% Volume (Walking Active - Ducked!)';
+      }
+    }
 
     if (currentSteps >= targetSteps) {
       demoCadenceStatus.textContent = 'Challenge Completed!';
@@ -88,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (demoWalkStepBtn) {
     demoWalkStepBtn.addEventListener('click', () => {
+      clearTimeout(watchdogTimeout);
       const now = Date.now();
       const interval = now - lastStepTimestamp;
       lastStepTimestamp = now;
@@ -97,7 +128,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       demoCadenceStatus.textContent = 'Valid Gait (1.8 Hz)';
       demoCadenceStatus.className = 'metric-value status-good';
-      demoLogText.textContent = `✓ Authentic human step detected (${interval > 0 ? interval + 'ms' : 'normal'}). Step accepted!`;
+      if (currentSteps < 10) {
+        demoLogText.textContent = `✓ Authentic human step detected (${interval > 0 ? interval + 'ms' : 'normal'}). Alarm at 100% volume until 10 steps!`;
+      } else if (currentSteps < targetSteps) {
+        demoLogText.textContent = `✓ Authentic walking active! 10 steps reached: volume ducked down to 30% relief!`;
+      }
       updateProgressUI();
     });
   }
@@ -111,8 +146,33 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  if (demoPauseWatchdogBtn) {
+    demoPauseWatchdogBtn.addEventListener('click', () => {
+      if (currentSteps === 0) {
+        demoLogText.textContent = 'Take a few authentic steps first, then test pausing!';
+        return;
+      }
+      clearTimeout(watchdogTimeout);
+      demoCadenceStatus.textContent = 'Walking Paused';
+      demoCadenceStatus.className = 'metric-value';
+      demoCadenceStatus.style.color = '#F59E0B';
+      demoLogText.textContent = '⏳ Stopped walking... 8-second anti-slacking watchdog timer started...';
+
+      watchdogTimeout = setTimeout(() => {
+        if (simVolumePill && simVolumeText && currentSteps < targetSteps) {
+          simVolumePill.className = 'simulator-volume-pill warning';
+          simVolumeText.textContent = '⚠️ Keep Moving! Volume ramping to 100%!';
+          demoLogText.textContent = '⚠️ 8 seconds of inactivity detected! Volume ramping back up to 100% hardcore volume to prevent falling back to sleep!';
+          demoCadenceStatus.textContent = 'Watchdog Alert';
+          demoCadenceStatus.style.color = '#F43F5E';
+        }
+      }, 2500); // 2.5s accelerated for web simulator
+    });
+  }
+
   if (demoResetBtn) {
     demoResetBtn.addEventListener('click', () => {
+      clearTimeout(watchdogTimeout);
       currentSteps = 0;
       lastStepTimestamp = 0;
       demoCadenceStatus.textContent = 'Ready';
@@ -147,47 +207,184 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- Tab 3: Ringtone Audio Simulation ---
+  // --- Tab 3: Ringtone Audio & Sound Bank Simulation ---
   const demoPlayRingtoneBtn = document.getElementById('demoPlayRingtoneBtn');
+  const demoDuckVolumeBtn = document.getElementById('demoDuckVolumeBtn');
   const demoStopRingtoneBtn = document.getElementById('demoStopRingtoneBtn');
   const audioWavesBox = document.getElementById('audioWavesBox');
   const volumeRampLevel = document.getElementById('volumeRampLevel');
   const volumeRampBar = document.getElementById('volumeRampBar');
+  const volumeStatusTitle = document.getElementById('volumeStatusTitle');
   const demoAudioHint = document.getElementById('demoAudioHint');
+  const soundCatBtns = document.querySelectorAll('.sound-cat-btn');
 
-  let rampInterval = null;
-  let currentVol = 20;
+  let selectedCategory = 'phone';
+  let audioCtx = null;
+  let isPlayingAudio = false;
+  let synthNodes = [];
+  let masterGain = null;
 
-  if (demoPlayRingtoneBtn && audioWavesBox && volumeRampLevel && volumeRampBar) {
-    demoPlayRingtoneBtn.addEventListener('click', () => {
-      clearInterval(rampInterval);
-      audioWavesBox.classList.add('playing');
-      currentVol = 20;
-      volumeRampLevel.textContent = `${currentVol}% Volume`;
-      volumeRampBar.style.width = `${currentVol}%`;
-      demoAudioHint.textContent = '📞 Incoming phone call tone ringing on STREAM_ALARM. Ramping up...';
+  // Sound Category Selection
+  soundCatBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      soundCatBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedCategory = btn.getAttribute('data-sound');
 
-      rampInterval = setInterval(() => {
-        if (currentVol < 100) {
-          currentVol += 10;
-          volumeRampLevel.textContent = `${currentVol}% Volume`;
-          volumeRampBar.style.width = `${currentVol}%`;
-        } else {
-          clearInterval(rampInterval);
-          demoAudioHint.textContent = '🔊 Max volume reached! Playing continuously until challenge completion.';
+      const catDescriptions = {
+        phone: '📞 Phone Call: Incoming emergency ringtone designed to trigger cognitive alertness.',
+        harsh: '⚡ Harsh Klaxon: Aggressive dual-tone alerting siren designed to break deep sleep inertia.',
+        smooth: '🌿 Smooth Harmony: Gentle, resonant sunrise chords for calm morning awakening.',
+        random: '🎲 Daily Random: Automatically picks a different sound category every single morning!'
+      };
+      demoAudioHint.textContent = catDescriptions[selectedCategory] || '';
+
+      if (isPlayingAudio) {
+        stopAudioSynthesis();
+        playAudioSynthesis();
+      }
+    });
+  });
+
+  function stopAudioSynthesis() {
+    synthNodes.forEach(node => {
+      try { node.stop(); } catch(e) {}
+      try { node.disconnect(); } catch(e) {}
+    });
+    synthNodes = [];
+    isPlayingAudio = false;
+    if (audioWavesBox) audioWavesBox.classList.remove('playing');
+  }
+
+  function playAudioSynthesis() {
+    stopAudioSynthesis();
+
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!audioCtx) audioCtx = new AudioContextClass();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      masterGain = audioCtx.createGain();
+      masterGain.gain.setValueAtTime(0.5, audioCtx.currentTime); // 100% normalized baseline
+      masterGain.connect(audioCtx.destination);
+
+      let effectiveCat = selectedCategory;
+      if (effectiveCat === 'random') {
+        const pool = ['phone', 'harsh', 'smooth'];
+        effectiveCat = pool[Math.floor(Math.random() * pool.length)];
+      }
+
+      const now = audioCtx.currentTime;
+
+      if (effectiveCat === 'phone') {
+        // Classic 440Hz + 480Hz phone ring
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const ringGain = audioCtx.createGain();
+
+        osc1.frequency.setValueAtTime(440, now);
+        osc2.frequency.setValueAtTime(480, now);
+
+        // Ring cadence: 1.2s on, 1.8s off
+        ringGain.gain.setValueAtTime(0.3, now);
+        for (let i = 0; i < 20; i++) {
+          const t = now + i * 3.0;
+          ringGain.gain.setValueAtTime(0.3, t);
+          ringGain.gain.setValueAtTime(0.3, t + 1.2);
+          ringGain.gain.setValueAtTime(0.001, t + 1.25);
+          ringGain.gain.setValueAtTime(0.001, t + 3.0);
         }
-      }, 600);
+
+        osc1.connect(ringGain);
+        osc2.connect(ringGain);
+        ringGain.connect(masterGain);
+
+        osc1.start(now);
+        osc2.start(now);
+        synthNodes.push(osc1, osc2, ringGain);
+      } else if (effectiveCat === 'harsh') {
+        // Dissonant siren klaxon 880Hz / 660Hz
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sawtooth';
+        for (let i = 0; i < 40; i++) {
+          const t = now + i * 0.4;
+          osc.frequency.setValueAtTime(880, t);
+          osc.frequency.setValueAtTime(660, t + 0.2);
+        }
+        const klaxonGain = audioCtx.createGain();
+        klaxonGain.gain.setValueAtTime(0.2, now);
+        osc.connect(klaxonGain);
+        klaxonGain.connect(masterGain);
+        osc.start(now);
+        synthNodes.push(osc, klaxonGain);
+      } else {
+        // Smooth chord arpeggio (C4, E4, G4, C5)
+        const notes = [261.63, 329.63, 392.00, 523.25];
+        notes.forEach((freq, idx) => {
+          const osc = audioCtx.createOscillator();
+          const noteGain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+
+          noteGain.gain.setValueAtTime(0.001, now);
+          for (let i = 0; i < 15; i++) {
+            const t = now + i * 2.0 + idx * 0.3;
+            noteGain.gain.linearRampToValueAtTime(0.12, t + 0.1);
+            noteGain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+          }
+
+          osc.connect(noteGain);
+          noteGain.connect(masterGain);
+          osc.start(now);
+          synthNodes.push(osc, noteGain);
+        });
+      }
+
+      isPlayingAudio = true;
+      if (audioWavesBox) audioWavesBox.classList.add('playing');
+    } catch (e) {
+      console.warn('Web Audio synthesis error:', e);
+    }
+  }
+
+  if (demoPlayRingtoneBtn) {
+    demoPlayRingtoneBtn.addEventListener('click', () => {
+      playAudioSynthesis();
+      if (volumeRampLevel) volumeRampLevel.textContent = '100% Volume';
+      if (volumeRampBar) {
+        volumeRampBar.style.width = '100%';
+        volumeRampBar.style.background = 'linear-gradient(90deg, #6366F1, #F43F5E)';
+      }
+      if (volumeStatusTitle) volumeStatusTitle.textContent = 'Volume: Hardcore Max Level (100%)';
+      if (demoAudioHint) demoAudioHint.textContent = `🔊 Playing ${selectedCategory.toUpperCase()} at 100% volume. Click "Duck Volume" to simulate walking 10 steps!`;
     });
   }
 
-  if (demoStopRingtoneBtn && audioWavesBox) {
+  if (demoDuckVolumeBtn) {
+    demoDuckVolumeBtn.addEventListener('click', () => {
+      if (!isPlayingAudio) {
+        playAudioSynthesis();
+      }
+      if (masterGain && audioCtx) {
+        masterGain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.8);
+      }
+      if (volumeRampLevel) volumeRampLevel.textContent = '30% Volume (Ducked)';
+      if (volumeRampBar) {
+        volumeRampBar.style.width = '30%';
+        volumeRampBar.style.background = 'linear-gradient(90deg, #10B981, #34D399)';
+      }
+      if (volumeStatusTitle) volumeStatusTitle.textContent = 'Volume: 30% (Walking Active Ducked)';
+      if (demoAudioHint) demoAudioHint.textContent = '🚶 10 steps detected! Volume smoothly ducked down to 30% for your ears and household.';
+    });
+  }
+
+  if (demoStopRingtoneBtn) {
     demoStopRingtoneBtn.addEventListener('click', () => {
-      clearInterval(rampInterval);
-      audioWavesBox.classList.remove('playing');
-      currentVol = 20;
-      volumeRampLevel.textContent = 'Silenced (0%)';
-      volumeRampBar.style.width = '0%';
-      demoAudioHint.textContent = '⏹ Alarm audio silenced.';
+      stopAudioSynthesis();
+      if (volumeRampLevel) volumeRampLevel.textContent = 'Silenced (0%)';
+      if (volumeRampBar) volumeRampBar.style.width = '0%';
+      if (volumeStatusTitle) volumeStatusTitle.textContent = 'Volume: Silenced';
+      if (demoAudioHint) demoAudioHint.textContent = '⏹ Alarm sound stopped.';
     });
   }
 

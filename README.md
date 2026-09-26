@@ -87,6 +87,39 @@ All validation thresholds in `ValidationConfig` represent **initial tunable heur
 
 ---
 
+## 🎶 Curated Sound Categories & Daily Randomization
+
+Deep sleepers develop **auditory habituation**—the subconscious brain learns to filter out repetitive alarm tones after a few days. WakeWalk solves this with a curated, lightweight built-in sound bank (<1 MB total) and category-scoped daily tone randomization:
+
+| Category | Description | Bundled Sound Tracks |
+|---|---|---|
+| **⚡ Harsh / Intense** | Aggressive klaxons and alerting cadences designed to shatter heavy sleep inertia. | *Klaxon Klaxon*, *Reveille Bugle*, *Electric Overdrive*, *Digital Bleeper* |
+| **🌿 Smooth / Gentle** | Peaceful acoustic compositions, ambient sunrise pads, and delicate chimes for calm mornings. | *Morning Harmony Piano*, *Zen Sunrise Ambient*, *Celestial Chimes* |
+| **📞 Urgent Phone Call** | Realistic incoming phone ringtones that trigger instinctive, physiological alertness. | *Incoming Emergency Call* |
+| **🎲 Daily Randomization** | Automatically rotates to a fresh tone every morning so your brain never habituates. | `Randomize (Harsh)`, `Randomize (Smooth)`, `Randomize (All)` |
+| **📱 System Sounds** | Native device alarm tones and user ringtones fetched via system providers. | *Default Alarm*, *Default Ringtone* |
+
+> **Interactive In-App Audition:** Preview any sound directly inside the categorized picker dialog before saving.
+
+---
+
+## 🔊 100% Hardcore Volume & 🚶 Walking Volume Ducking
+
+WakeWalk balances waking urgency with morning peace of mind using an intelligent dynamic volume engine:
+
+1. **100% Hardcore Starting Volume:**
+   - Automatically drives `STREAM_ALARM` to the maximum hardware level (`getStreamMaxVolume()`). Alarms can never be accidentally silenced by low system volume sliders.
+2. **10-Step Dynamic Volume Ducking (Relief Reward):**
+   - As soon as you take **10 genuine, verified steps**, the alarm volume smoothly fades down from 100% to **30%** over 1.5 seconds.
+   - You don't have to endure deafening volume or disturb family members while finishing your remaining walking goal.
+3. **8-Second Anti-Slacking Watchdog:**
+   - If you stop walking or sit back down on your bed for **8 seconds**, the watchdog triggers and smoothly ramps the volume **back up to 100%** over 2 seconds.
+   - Taking another authentic step instantly re-ducks the volume back to 30%.
+4. **Full Configuration:**
+   - Walking volume ducking can be customized per-alarm in the alarm creator or configured globally in **Settings**.
+
+---
+
 ## 🚨 Emergency Dismissal Safety Fallback
 
 WakeWalk provides an intentional safety mechanism for medical emergencies, injuries, or unexpected situations while preventing half-asleep accidental dismissals:
@@ -113,10 +146,13 @@ The project includes an extensive suite of unit tests verifying all critical lay
 - `StepAccumulatorTest`: Baseline subtraction, delta calculation, and counter rollover.
 - `MovementValidatorTest`: Gait cadence, rapid shaking rejection, and confidence filtering.
 - `ChallengeEngineTest`: State transitions (`RINGING` → `CHALLENGE_ACTIVE` → `CHALLENGE_COMPLETED`), emergency dismissal, and snooze.
+- `AlarmSoundRegistryTest`: Category filtering, daily randomization, and URI token resolution.
+- `AudioControllerTest`: 100% volume enforcement, volume ducking, restoration, and preview.
 - `AlarmTimeCalculatorTest`: One-time alarms, everyday repeat, weekday/weekend masks, and midnight rollover.
 - `RoomDatabaseTest`: Entity mapping, TypeConverters, singleton active session, and atomic completion transactions.
 - `WakeSessionRepositoryTest`: Recovery from Room, session updates, and cleanup.
 - `StatisticsRepositoryTest`: Streak calculation and aggregate metrics.
+- `CreateEditAlarmViewModelTest`: Tone selection, preview playback, and walking ducking state.
 
 ### 2. Build Debug APK
 ```bash
