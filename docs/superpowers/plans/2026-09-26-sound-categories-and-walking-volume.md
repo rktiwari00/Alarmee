@@ -40,7 +40,7 @@
     - `fun resolveSoundUri(uriString: String?, lastSoundId: String? = null): Pair<SoundItem, String>`
     - Constants: `TOKEN_RANDOM_HARSH`, `TOKEN_RANDOM_SMOOTH`, `TOKEN_RANDOM_ALL`
 
-- [ ] **Step 1: Write the failing unit tests for `AlarmSoundRegistry`**
+- [x] **Step 1: Write the failing unit tests for `AlarmSoundRegistry`**
   Create `app/src/test/java/app/wakewalk/domain/sound/AlarmSoundRegistryTest.kt`:
   - Test `getSoundsByCategory(HARSH)` returns only harsh sounds.
   - Test `getSoundsByCategory(SMOOTH)` returns only smooth sounds.
@@ -48,16 +48,16 @@
   - Test `resolveSoundUri(TOKEN_RANDOM_HARSH)` resolves to a harsh sound item.
   - Test `resolveSoundUri(null)` falls back to default phone ringtone.
 
-- [ ] **Step 2: Run test to confirm failure**
+- [x] **Step 2: Run test to confirm failure**
   Run: `$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"; .\gradlew.bat testDebugUnitTest --tests "app.wakewalk.domain.sound.AlarmSoundRegistryTest"`
 
-- [ ] **Step 3: Implement `SoundModels.kt` and `AlarmSoundRegistry.kt`**
+- [x] **Step 3: Implement `SoundModels.kt` and `AlarmSoundRegistry.kt`**
   Implement category enums, sound items, and registry methods with deterministic fallback.
 
-- [ ] **Step 4: Run test to confirm pass**
+- [x] **Step 4: Run test to confirm pass**
   Run: `$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"; .\gradlew.bat testDebugUnitTest --tests "app.wakewalk.domain.sound.AlarmSoundRegistryTest"`
 
-- [ ] **Step 5: Commit changes**
+- [x] **Step 5: Commit changes**
   Run: `git add app/src/main/java/app/wakewalk/domain/sound/ app/src/test/java/app/wakewalk/domain/sound/; git commit -m "feat(domain): add sound models and AlarmSoundRegistry with category filtering"`
 
 ---
@@ -77,13 +77,13 @@
 **Interfaces:**
 - Produces: Android raw resource identifiers (`R.raw.sound_*`) for playback by `MediaPlayer`.
 
-- [ ] **Step 1: Generate pristine, royalty-free audio waveform loops**
+- [x] **Step 1: Generate pristine, royalty-free audio waveform loops**
   Use a Python script with standard libraries / wave synthesis to synthesize harmonic, distinct audio loops (dual-tone klaxon, bugle fanfare, chord progression, acoustic piano, resonant chimes) and encode to OGG Vorbis / WAV for `res/raw/`. Keep total size under 800 KB.
 
-- [ ] **Step 2: Verify audio files are valid and loadable by Android SDK**
+- [x] **Step 2: Verify audio files are valid and loadable by Android SDK**
   Verify file sizes and header signatures.
 
-- [ ] **Step 3: Commit raw audio assets**
+- [x] **Step 3: Commit raw audio assets**
   Run: `git add app/src/main/res/raw/; git commit -m "feat(audio): add curated lightweight alarm loops for harsh, smooth, and phone categories"`
 
 ---
@@ -104,18 +104,18 @@
   - `fun previewSound(rawResId: Int?, uri: Uri? = null, onCompletion: () -> Unit = {})`
   - `fun stopPreview()`
 
-- [ ] **Step 1: Write unit tests for duckVolume and ensureMaxAlarmVolume**
+- [x] **Step 1: Write unit tests for duckVolume and ensureMaxAlarmVolume**
   Update `app/src/test/java/app/wakewalk/alarm/audio/AudioControllerTest.kt` to test ducking and volume methods.
 
-- [ ] **Step 2: Implement ducking, volume restoration, and preview in `AudioController.kt`**
+- [x] **Step 2: Implement ducking, volume restoration, and preview in `AudioController.kt`**
   - Implement `ensureMaxAlarmVolume()` setting `STREAM_ALARM` to `getStreamMaxVolume()`.
   - Implement coroutine-based volume interpolation in `duckVolume` and `restoreVolume`.
   - Implement separate preview `MediaPlayer` instance for safe UI sampling without interfering with alarm audio.
 
-- [ ] **Step 3: Run unit tests**
+- [x] **Step 3: Run unit tests**
   Run: `$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"; .\gradlew.bat testDebugUnitTest --tests "app.wakewalk.alarm.audio.AudioControllerTest"`
 
-- [ ] **Step 4: Commit changes**
+- [x] **Step 4: Commit changes**
   Run: `git add app/src/main/java/app/wakewalk/alarm/audio/ app/src/test/java/app/wakewalk/alarm/audio/; git commit -m "feat(audio): add 100% volume enforcement, smooth ducking, and sound preview to AudioController"`
 
 ---
@@ -133,19 +133,19 @@
   - Dynamic volume state broadcasting (`isDucked`, `isPausedWarning`) to `AlarmActivity`
   - 8-second walking inactivity detection
 
-- [ ] **Step 1: Add `lowerVolumeWhileWalking` to `AlarmEntity` and `UserPreferences`**
+- [x] **Step 1: Add `lowerVolumeWhileWalking` to `AlarmEntity` and `UserPreferences`**
   Default to `true`.
 
-- [ ] **Step 2: Update `AlarmForegroundService.kt`**
+- [x] **Step 2: Update `AlarmForegroundService.kt`**
   - In `handleStartAlarm`: call `AlarmSoundRegistry.resolveSoundUri()` to resolve random tokens into a concrete sound for the day.
   - In sensor callback: when `currentSteps >= 10 && !isVolumeDucked && lowerVolumeWhileWalking`, call `audioController.duckVolume(0.30f)`.
   - Implement `startWalkingWatchdog()` coroutine loop: checks every 1000ms. If `isVolumeDucked && (now - lastStepTimestamp) >= 8000L`, calls `audioController.restoreVolume(1.0f)` and emits warning state.
   - When new authentic step arrives after pause: smoothly re-ducks volume.
 
-- [ ] **Step 3: Run full unit test suite**
+- [x] **Step 3: Run full unit test suite**
   Run: `$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"; .\gradlew.bat testDebugUnitTest`
 
-- [ ] **Step 4: Commit changes**
+- [x] **Step 4: Commit changes**
   Run: `git add app/src/main/java/app/wakewalk/alarm/service/ app/src/main/java/app/wakewalk/data/; git commit -m "feat(service): implement 10-step volume ducking, random sound resolution, and 8s inactivity watchdog"`
 
 ---
@@ -165,10 +165,10 @@
   - "Lower volume while walking" toggle switch
   - Live lockscreen volume status pill badge
 
-- [ ] **Step 1: Update `CreateEditAlarmViewModel.kt`**
+- [x] **Step 1: Update `CreateEditAlarmViewModel.kt`**
   Expose sound categories, selected sound title, preview playback state, and `lowerVolumeWhileWalking` toggle state.
 
-- [ ] **Step 2: Build `SoundPickerDialog` in `CreateEditAlarmScreen.kt`**
+- [x] **Step 2: Build `SoundPickerDialog` in `CreateEditAlarmScreen.kt`**
   Display expandable/categorized sections:
   - 🎲 Daily Randomize (Harsh, Smooth, All)
   - ⚡ Harsh / Intense
@@ -177,15 +177,15 @@
   - 🔔 System Ringtones
   With play/pause preview icons next to each tone.
 
-- [ ] **Step 3: Update `AlarmScreen.kt` Lockscreen UI**
+- [x] **Step 3: Update `AlarmScreen.kt` Lockscreen UI**
   Show dynamic status pill:
   - `🔊 Full Volume`
   - `🚶 30% Volume (Walking Active)`
   - `⚠️ Keep Moving! Volume ramping up...`
 
-- [ ] **Step 4: Run full verification & build debug APK**
+- [x] **Step 4: Run full verification & build debug APK**
   Run: `$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"; .\gradlew.bat testDebugUnitTest`
   Run: `$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"; .\gradlew.bat assembleDebug`
 
-- [ ] **Step 5: Commit changes and push to GitHub**
+- [x] **Step 5: Commit changes and push to GitHub**
   Run: `git add -A; git commit -m "feat(ui): add categorized sound picker dialog with live previews and dynamic volume badges"; git push origin master`
