@@ -9,6 +9,7 @@ import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +24,13 @@ import javax.inject.Singleton
 class AudioController @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    companion object {
+        const val URI_DEFAULT_CALL_RINGTONE = "content://wakewalk/sound/call_ringtone"
+        const val URI_DEFAULT_ALARM = "content://wakewalk/sound/alarm"
+        const val TITLE_PHONE_RINGTONE = "Phone Ringtone (Default)"
+        const val TITLE_STANDARD_ALARM = "Standard Alarm Sound"
+    }
+
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var mediaPlayer: MediaPlayer? = null
     private var fallbackRingtone: Ringtone? = null
@@ -53,6 +61,7 @@ class AudioController @Inject constructor(
                 Log.d("WakeWalk", "AudioController: Trying to play URI with MediaPlayer: $uri")
                 val player = MediaPlayer().apply {
                     setAudioAttributes(audioAttributes)
+                    setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
                     setDataSource(context, uri)
                     isLooping = true
                     prepare()
@@ -106,62 +115,101 @@ class AudioController @Inject constructor(
             val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
             val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
             Log.d("WakeWalk", "AudioController: Current STREAM_ALARM volume is $currentVol / $maxVol")
-            if (currentVol <= 0 && maxVol > 0) {
-                val targetVol = (maxVol * 0.75f).toInt().coerceAtLeast(1)
+            if (maxVol > 0 && currentVol < (maxVol * 0.6f)) {
+                val targetVol = (maxVol * 0.8f).toInt().coerceAtLeast(1)
                 audioManager.setStreamVolume(AudioManager.STREAM_ALARM, targetVol, 0)
-                Log.d("WakeWalk", "AudioController: Adjusted STREAM_ALARM volume from 0 to $targetVol")
+                Log.d("WakeWalk", "AudioController: Adjusted STREAM_ALARM volume from $currentVol to $targetVol")
             }
         } catch (e: Exception) {
             Log.w("WakeWalk", "AudioController: Could not inspect or adjust alarm stream volume", e)
         }
     }
 
-    private fun buildCandidateUris(customSoundUri: String?): List<Uri> {
+    fun getSoundTitle(uriString: String?): String {
+        if (uriString.isNullOrBlank() || uriString == URI_DEFAULT_CALL_RINGTONE) {
+            return TITLE_PHONE_RINGTONE
+        }
+        if (uriString == URI_DEFAULT_ALARM) {
+            return TITLE_STANDARD_ALARM
+        }
+        return try {
+            val uri = Uri.parse(uriString)
+            val ringtone = RingtoneManager.getRingtone(context, uri)
+            val title = ringtone?.getTitle(context)
+            if (!title.isNullOrBlank()) title else "Custom Sound"
+        } catch (_: Exception) {
+            "Custom Sound"
+        }
+    }
+
+    internal fun buildCandidateUris(customSoundUri: String?): List<Uri> {
         val list = mutableListOf<Uri>()
 
-        // Custom URI if provided
-        customSoundUri?.let {
+        // 1. Explicit Custom URI if provided (and not one of our symbolic tokens)
+        if (customSoundUri != null && customSoundUri != URI_DEFAULT_CALL_RINGTONE && customSoundUri != URI_DEFAULT_ALARM) {
             try {
-                list.add(Uri.parse(it))
+                list.add(Uri.parse(customSoundUri))
             } catch (_: Exception) {}
         }
 
-        // Actual default alarm URI (resolves symbolic URI to actual media content URI)
-        try {
-            RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)?.let {
-                list.add(it)
-            }
-        } catch (_: Exception) {}
+        // 2. If specifically configured for standard alarm
+        if (customSoundUri == URI_DEFAULT_ALARM) {
+            // Actual default alarm URI
+            try {
+                RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)?.let {
+                    list.add(it)
+                }
+            } catch (_: Exception) {}
 
-        // Symbolic default alarm URI
-        try {
-            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)?.let {
-                list.add(it)
-            }
-        } catch (_: Exception) {}
+            // Symbolic default alarm URI
+            try {
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)?.let {
+                    list.add(it)
+                }
+            } catch (_: Exception) {}
 
-        // Actual ringtone URI
-        try {
-            RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)?.let {
-                list.add(it)
-            }
-        } catch (_: Exception) {}
+            // Fallback to phone ringtone if alarm sound unavailable
+            try {
+                RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)?.let {
+                    list.add(it)
+                }
+            } catch (_: Exception) {}
+        } else {
+            // Default (customSoundUri == null || customSoundUri == URI_DEFAULT_CALL_RINGTONE or custom fallback):
+            // Prioritize incoming call ringtone so alarm registers in consciousness like a phone call
+            try {
+                RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)?.let {
+                    list.add(it)
+                }
+            } catch (_: Exception) {}
 
-        // Symbolic ringtone URI
-        try {
-            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)?.let {
-                list.add(it)
-            }
-        } catch (_: Exception) {}
+            try {
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)?.let {
+                    list.add(it)
+                }
+            } catch (_: Exception) {}
 
-        // Actual notification URI
+            // Standard alarm fallback
+            try {
+                RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)?.let {
+                    list.add(it)
+                }
+            } catch (_: Exception) {}
+
+            try {
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)?.let {
+                    list.add(it)
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Notification fallbacks
         try {
             RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_NOTIFICATION)?.let {
                 list.add(it)
             }
         } catch (_: Exception) {}
 
-        // Symbolic notification URI
         try {
             RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)?.let {
                 list.add(it)
