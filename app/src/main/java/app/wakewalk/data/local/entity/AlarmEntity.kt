@@ -19,6 +19,7 @@ data class AlarmEntity(
     val soundUri: String? = null,
     val vibrationEnabled: Boolean = true,
     val gradualVolume: Boolean = true,
+    val lowerVolumeWhileWalking: Boolean = true,
     val snoozeEnabled: Boolean = false,
     val snoozeDurationMinutes: Int = 5,
     val createdAtEpochMs: Long = System.currentTimeMillis(),

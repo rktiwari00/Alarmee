@@ -16,10 +16,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import app.wakewalk.domain.sound.AlarmSoundRegistry
 import javax.inject.Inject
 import javax.inject.Singleton
+
+enum class VolumeDuckingState {
+    FULL_VOLUME,
+    DUCKED_WALKING,
+    INACTIVITY_RAMPING_UP
+}
 
 @Singleton
 class AudioController @Inject constructor(
@@ -41,8 +50,11 @@ class AudioController @Inject constructor(
     private var duckJob: Job? = null
     private var previewPlayer: MediaPlayer? = null
 
-    var isVolumeDucked: Boolean = false
-        private set
+    private val _volumeDuckingState = MutableStateFlow(VolumeDuckingState.FULL_VOLUME)
+    val volumeDuckingState: StateFlow<VolumeDuckingState> = _volumeDuckingState.asStateFlow()
+
+    val isVolumeDucked: Boolean
+        get() = _volumeDuckingState.value == VolumeDuckingState.DUCKED_WALKING
 
     private val audioAttributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_ALARM)
@@ -128,7 +140,7 @@ class AudioController @Inject constructor(
     }
 
     fun duckVolume(targetVolume: Float = 0.30f, durationMs: Long = 1500L) {
-        isVolumeDucked = true
+        _volumeDuckingState.value = VolumeDuckingState.DUCKED_WALKING
         duckJob?.cancel()
         val player = mediaPlayer ?: return
         duckJob = CoroutineScope(Dispatchers.Default).launch {
@@ -147,7 +159,7 @@ class AudioController @Inject constructor(
     }
 
     fun restoreVolume(targetVolume: Float = 1.0f, durationMs: Long = 2000L) {
-        isVolumeDucked = false
+        _volumeDuckingState.value = VolumeDuckingState.INACTIVITY_RAMPING_UP
         duckJob?.cancel()
         val player = mediaPlayer ?: return
         duckJob = CoroutineScope(Dispatchers.Default).launch {
@@ -162,6 +174,9 @@ class AudioController @Inject constructor(
                 } catch (_: Exception) {
                     break
                 }
+            }
+            if (_volumeDuckingState.value == VolumeDuckingState.INACTIVITY_RAMPING_UP) {
+                _volumeDuckingState.value = VolumeDuckingState.FULL_VOLUME
             }
         }
     }
@@ -388,7 +403,7 @@ class AudioController @Inject constructor(
         volumeRampJob = null
         duckJob?.cancel()
         duckJob = null
-        isVolumeDucked = false
+        _volumeDuckingState.value = VolumeDuckingState.FULL_VOLUME
         stopPreview()
 
         try {

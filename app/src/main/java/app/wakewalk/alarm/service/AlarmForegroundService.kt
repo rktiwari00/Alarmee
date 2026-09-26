@@ -27,11 +27,13 @@ import app.wakewalk.domain.movement.MovementValidator
 import app.wakewalk.domain.repository.AlarmRepository
 import app.wakewalk.domain.repository.WakeSessionRepository
 import app.wakewalk.ui.alarm.AlarmActivity
+import app.wakewalk.domain.sound.AlarmSoundRegistry
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -55,6 +57,7 @@ class AlarmForegroundService : Service() {
     @Inject lateinit var vibrationController: VibrationController
     @Inject lateinit var sensorAdapter: AndroidSensorAdapter
     @Inject lateinit var notificationManager: AlarmNotificationManager
+    @Inject lateinit var soundRegistry: AlarmSoundRegistry
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private val challengeEngine = ChallengeEngine(validator = MovementValidator())
@@ -69,7 +72,10 @@ class AlarmForegroundService : Service() {
     private var targetSteps: Int = 150
     private var currentSnoozeDurationMinutes: Int = 5
     private var currentSoundUri: String? = null
+    private var lowerVolumeWhileWalking: Boolean = true
     private var startedAtEpochMs: Long = 0L
+    private var lastStepEpochMs: Long = 0L
+    private var walkingWatchdogJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -164,7 +170,12 @@ class AlarmForegroundService : Service() {
         val vibrationEnabled = intent.getBooleanExtra(AndroidAlarmScheduler.EXTRA_VIBRATION, true)
         val gradualVolume = intent.getBooleanExtra(AndroidAlarmScheduler.EXTRA_GRADUAL_VOLUME, true)
         currentSoundUri = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_SOUND_URI)
+        lowerVolumeWhileWalking = intent.getBooleanExtra(
+            AndroidAlarmScheduler.EXTRA_LOWER_VOLUME_WHILE_WALKING,
+            true
+        )
         startedAtEpochMs = System.currentTimeMillis()
+        lastStepEpochMs = startedAtEpochMs
 
         // Acquire persistent CPU WakeLock so Doze / screen sleep cannot pause the alarm
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -260,10 +271,34 @@ class AlarmForegroundService : Service() {
                 wakeSessionRepository.startSession(newSession)
             }
 
+            // Ensure 100% max volume on alarm start
+            audioController.ensureMaxAlarmVolume()
+
+            // Resolve daily randomized sound or category sound if configured
+            val resolvedSound = soundRegistry.resolveSound(currentSoundUri)
+            val playUri = resolvedSound.contentUri
+            Log.d("WakeWalk", "AlarmForegroundService: Starting audio with sound '${resolvedSound.title}' ($playUri)")
+
             // Start Audio and Vibration
-            audioController.startAlarmAudio(customSoundUri = currentSoundUri, gradualVolume = gradualVolume)
+            audioController.startAlarmAudio(customSoundUri = playUri, gradualVolume = gradualVolume)
             if (vibrationEnabled) {
                 vibrationController.startAlarmVibration()
+            }
+
+            // Start 8-second walking inactivity watchdog
+            walkingWatchdogJob?.cancel()
+            walkingWatchdogJob = serviceScope.launch {
+                while (true) {
+                    delay(1000L)
+                    val now = System.currentTimeMillis()
+                    if (lowerVolumeWhileWalking && audioController.isVolumeDucked) {
+                        val elapsed = now - lastStepEpochMs
+                        if (elapsed >= 8000L) {
+                            Log.d("WakeWalk", "AlarmForegroundService: User paused walking for ${elapsed}ms. Watchdog ramping volume back up to 100%!")
+                            audioController.restoreVolume(targetVolume = 1.0f, durationMs = 2000L)
+                        }
+                    }
+                }
             }
 
             // Start Sensor Adapter
@@ -276,9 +311,16 @@ class AlarmForegroundService : Service() {
                     "AlarmForegroundService: processStep accepted=${result.accepted}, reason=${result.reason}, steps=$newSteps/$targetSteps"
                 )
                 if (result.accepted && newSteps > prevSteps) {
+                    lastStepEpochMs = System.currentTimeMillis()
+                    if (lowerVolumeWhileWalking && newSteps >= 10 && !audioController.isVolumeDucked) {
+                        Log.d("WakeWalk", "AlarmForegroundService: User reached 10 steps or resumed walking! Ducking volume to 30%.")
+                        audioController.duckVolume(targetVolume = 0.30f, durationMs = 1500L)
+                    }
+
                     val updatedSession = challengeEngine.currentSession ?: return@start
                     serviceScope.launch {
                         wakeSessionRepository.updateSession(updatedSession)
+                        updateProgressNotification(updatedSession.currentSteps)
                         updateProgressNotification(updatedSession.currentSteps)
 
                         // Milestone haptics
@@ -362,6 +404,8 @@ class AlarmForegroundService : Service() {
         val durationSeconds = if (startedAtEpochMs > 0L) (now - startedAtEpochMs) / 1000L else 0L
 
         // 1. Teardown audio and sensors immediately
+        walkingWatchdogJob?.cancel()
+        walkingWatchdogJob = null
         sensorAdapter.stop()
         audioController.stopAudio()
         vibrationController.stopVibration()
@@ -410,6 +454,8 @@ class AlarmForegroundService : Service() {
             }
         } catch (_: Exception) {}
         cpuWakeLock = null
+        walkingWatchdogJob?.cancel()
+        walkingWatchdogJob = null
         sensorAdapter.stop()
         audioController.stopAudio()
         vibrationController.stopVibration()

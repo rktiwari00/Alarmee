@@ -34,6 +34,7 @@ class AndroidAlarmScheduler @Inject constructor(
         const val EXTRA_SNOOZE_ENABLED = "extra_snooze_enabled"
         const val EXTRA_SNOOZE_DURATION = "extra_snooze_duration"
         const val EXTRA_SOUND_URI = "extra_sound_uri"
+        const val EXTRA_LOWER_VOLUME_WHILE_WALKING = "extra_lower_volume_while_walking"
     }
 
     override fun canScheduleExactAlarms(): Boolean {
@@ -85,6 +86,7 @@ class AndroidAlarmScheduler @Inject constructor(
             putExtra(EXTRA_QR_LABEL, alarm.qrCodeLabel)
             putExtra(EXTRA_VIBRATION, alarm.vibrationEnabled)
             putExtra(EXTRA_GRADUAL_VOLUME, alarm.gradualVolume)
+            putExtra(EXTRA_LOWER_VOLUME_WHILE_WALKING, alarm.lowerVolumeWhileWalking)
             putExtra(EXTRA_SNOOZE_ENABLED, alarm.snoozeEnabled)
             putExtra(EXTRA_SNOOZE_DURATION, alarm.snoozeDurationMinutes)
             putExtra(EXTRA_SOUND_URI, alarm.soundUri)

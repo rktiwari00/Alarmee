@@ -25,7 +25,7 @@ object DatabaseModule {
             WakeWalkDatabase::class.java,
             "wakewalk.db"
         )
-            .addMigrations(WakeWalkDatabase.MIGRATION_1_2)
+            .addMigrations(WakeWalkDatabase.MIGRATION_1_2, WakeWalkDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
     }

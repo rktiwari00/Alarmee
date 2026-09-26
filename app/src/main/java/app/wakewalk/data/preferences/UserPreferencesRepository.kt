@@ -17,7 +17,8 @@ data class UserPreferences(
     val emergencyDismissalMethod: String = METHOD_TYPING_PHRASE,
     val defaultStepTarget: Int = 150,
     val theme: String = THEME_SYSTEM,
-    val onboardingCompleted: Boolean = false
+    val onboardingCompleted: Boolean = false,
+    val lowerVolumeWhileWalking: Boolean = true
 ) {
     companion object {
         const val METHOD_TYPING_PHRASE = "TYPING_PHRASE"
@@ -37,6 +38,7 @@ class UserPreferencesRepository(
         val DEFAULT_STEP_TARGET = intPreferencesKey("default_step_target")
         val THEME = stringPreferencesKey("app_theme")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        val LOWER_VOLUME_WHILE_WALKING = booleanPreferencesKey("lower_volume_while_walking")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = dataStore.data.map { preferences ->
@@ -44,7 +46,8 @@ class UserPreferencesRepository(
             emergencyDismissalMethod = preferences[PreferencesKeys.EMERGENCY_METHOD] ?: UserPreferences.METHOD_TYPING_PHRASE,
             defaultStepTarget = preferences[PreferencesKeys.DEFAULT_STEP_TARGET] ?: 150,
             theme = preferences[PreferencesKeys.THEME] ?: UserPreferences.THEME_SYSTEM,
-            onboardingCompleted = preferences[PreferencesKeys.ONBOARDING_COMPLETED] ?: false
+            onboardingCompleted = preferences[PreferencesKeys.ONBOARDING_COMPLETED] ?: false,
+            lowerVolumeWhileWalking = preferences[PreferencesKeys.LOWER_VOLUME_WHILE_WALKING] ?: true
         )
     }
 
@@ -69,6 +72,12 @@ class UserPreferencesRepository(
     suspend fun setOnboardingCompleted(completed: Boolean) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.ONBOARDING_COMPLETED] = completed
+        }
+    }
+
+    suspend fun setLowerVolumeWhileWalking(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.LOWER_VOLUME_WHILE_WALKING] = enabled
         }
     }
 }

@@ -21,7 +21,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ActiveSessionEntity::class,
         AlarmHistoryEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -47,6 +47,12 @@ abstract class WakeWalkDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE alarms ADD COLUMN qrCodePayload TEXT DEFAULT NULL")
                 db.execSQL("ALTER TABLE alarms ADD COLUMN qrCodeLabel TEXT DEFAULT NULL")
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE alarms ADD COLUMN lowerVolumeWhileWalking INTEGER NOT NULL DEFAULT 1")
             }
         }
     }

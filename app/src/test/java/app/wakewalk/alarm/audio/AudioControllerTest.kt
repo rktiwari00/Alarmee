@@ -67,8 +67,11 @@ class AudioControllerTest {
 
     @Test
     fun testDuckAndRestoreVolumeFlags() {
+        assertEquals(VolumeDuckingState.FULL_VOLUME, audioController.volumeDuckingState.value)
+
         audioController.duckVolume(0.3f, durationMs = 10L)
         assertTrue(audioController.isVolumeDucked)
+        assertEquals(VolumeDuckingState.DUCKED_WALKING, audioController.volumeDuckingState.value)
 
         audioController.restoreVolume(1.0f, durationMs = 10L)
         assertFalse(audioController.isVolumeDucked)
