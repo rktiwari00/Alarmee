@@ -1,5 +1,7 @@
 package app.wakewalk.ui.alarm
 
+import android.app.KeyguardManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Build
@@ -20,17 +22,12 @@ class AlarmActivity : ComponentActivity() {
     private val viewModel: AlarmViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        handleIntent(intent)
-
-        // Lock to portrait orientation
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-
-        // Show over lockscreen and turn screen on
+        // Show over lockscreen and turn screen on before super.onCreate
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+            keyguardManager?.requestDismissKeyguard(this, null)
         } else {
             @Suppress("DEPRECATION")
             window.addFlags(
@@ -39,9 +36,14 @@ class AlarmActivity : ComponentActivity() {
                         WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
             )
         }
-
-        // Keep screen on while ringing/challenging
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        super.onCreate(savedInstanceState)
+
+        handleIntent(intent)
+
+        // Lock to portrait orientation
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
         // Intercept and disable back button so user cannot accidentally or intentionally dismiss alarm
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {

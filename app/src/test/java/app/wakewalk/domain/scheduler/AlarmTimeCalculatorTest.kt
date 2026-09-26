@@ -93,4 +93,41 @@ class AlarmTimeCalculatorTest {
         val formatted = AlarmTimeCalculator.formatTimeRemaining(trigger, now)
         assertTrue(formatted.contains("2 hours") || formatted.contains("2h"))
     }
+
+    @Test
+    fun testRepeatingAlarmCalculatesNextDayWhenTriggered() {
+        // Today is Friday at 07:00:00.000 AM. Alarm triggers.
+        val everydayMask = AlarmTimeCalculator.EVERYDAY_MASK
+        val friday7am = ZonedDateTime.of(2026, 9, 18, 7, 0, 0, 0, zoneId)
+        val nextTrigger = AlarmTimeCalculator.calculateNextOccurrenceAfter(
+            hour = 7,
+            minute = 0,
+            repeatDaysMask = everydayMask,
+            afterEpochMs = friday7am.toInstant().toEpochMilli(),
+            zoneId = zoneId
+        )
+        val result = ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(nextTrigger), zoneId)
+        assertEquals(DayOfWeek.SATURDAY, result.dayOfWeek)
+        assertEquals(19, result.dayOfMonth)
+        assertEquals(7, result.hour)
+        assertEquals(0, result.minute)
+    }
+
+    @Test
+    fun testRepeatingAlarmWithEarlyClockDriftStillRollsToNextDay() {
+        // Alarm fires 200ms before 07:00:00 AM (clock drift)
+        val everydayMask = AlarmTimeCalculator.EVERYDAY_MASK
+        val fridayEarly = ZonedDateTime.of(2026, 9, 18, 6, 59, 59, 800_000_000, zoneId)
+        val nextTrigger = AlarmTimeCalculator.calculateNextOccurrenceAfter(
+            hour = 7,
+            minute = 0,
+            repeatDaysMask = everydayMask,
+            afterEpochMs = fridayEarly.toInstant().toEpochMilli(),
+            zoneId = zoneId
+        )
+        val result = ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(nextTrigger), zoneId)
+        assertEquals(DayOfWeek.SATURDAY, result.dayOfWeek)
+        assertEquals(19, result.dayOfMonth)
+        assertEquals(7, result.hour)
+    }
 }

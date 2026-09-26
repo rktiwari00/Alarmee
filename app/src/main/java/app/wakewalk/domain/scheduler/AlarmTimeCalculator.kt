@@ -77,6 +77,19 @@ object AlarmTimeCalculator {
         return todayTarget.plusDays(1).toInstant().toEpochMilli()
     }
 
+    fun calculateNextOccurrenceAfter(
+        hour: Int,
+        minute: Int,
+        repeatDaysMask: Int,
+        afterEpochMs: Long = System.currentTimeMillis(),
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): Long {
+        // Advance at least 60 seconds into the future so that if the alarm triggered
+        // at or slightly before its scheduled minute, it rolls safely to the next occurrence.
+        val safeEpochMs = afterEpochMs + 60_000L
+        return calculateNextTriggerTime(hour, minute, repeatDaysMask, safeEpochMs, zoneId)
+    }
+
     fun formatTimeRemaining(triggerEpochMs: Long, nowEpochMs: Long = System.currentTimeMillis()): String {
         val diffMs = (triggerEpochMs - nowEpochMs).coerceAtLeast(0L)
         val totalMinutes = ChronoUnit.MINUTES.between(

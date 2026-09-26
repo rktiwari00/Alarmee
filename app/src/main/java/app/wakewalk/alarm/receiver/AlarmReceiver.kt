@@ -28,7 +28,7 @@ class AlarmReceiver : BroadcastReceiver() {
         )?.apply {
             setReferenceCounted(false)
         }
-        wakeLock?.acquire(15_000L)
+        wakeLock?.acquire(30_000L)
 
         val serviceIntent = Intent(context, AlarmForegroundService::class.java).apply {
             this.action = AlarmForegroundService.ACTION_START_ALARM

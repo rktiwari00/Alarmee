@@ -66,6 +66,7 @@ class AlarmNotificationManager @Inject constructor(
     }
 
     fun buildRingingNotification(
+        alarmId: Long = 0L,
         alarmLabel: String,
         targetSteps: Int,
         currentSteps: Int,
@@ -75,6 +76,7 @@ class AlarmNotificationManager @Inject constructor(
     ): Notification {
         val fullScreenIntent = Intent(context, AlarmActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(AndroidAlarmScheduler.EXTRA_ALARM_ID, alarmId)
             putExtra(AndroidAlarmScheduler.EXTRA_TARGET_STEPS, targetSteps)
             putExtra(AndroidAlarmScheduler.EXTRA_ALARM_LABEL, alarmLabel)
             putExtra(AndroidAlarmScheduler.EXTRA_CHALLENGE_TYPE, challengeType.name)
@@ -83,7 +85,7 @@ class AlarmNotificationManager @Inject constructor(
         }
         val fullScreenPendingIntent = PendingIntent.getActivity(
             context,
-            0,
+            alarmId.toInt(),
             fullScreenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
