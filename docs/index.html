@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WakeWalk — Anti-Cheat Smart Alarm for Deep Sleepers</title>
+  <meta name="description" content="WakeWalk is an open-source Android alarm app engineered for deep sleepers. Uses phone call ringtones and physical step/QR verification to guarantee you wake up.">
+  <meta name="keywords" content="alarm app, android alarm, wake walk, deep sleepers alarm, qr code alarm, step counter alarm, open source alarm">
+  
+  <!-- Open Graph / Social Sharing -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://rktiwari00.github.io/Alarmee/">
+  <meta property="og:title" content="WakeWalk — The Alarm That Actually Gets You Out Of Bed">
+  <meta property="og:description" content="Zero ads. 100% private. Wakes your conscious brain with phone call ringtones and authentic motion verification.">
+  <meta property="og:image" content="https://raw.githubusercontent.com/rktiwari00/Alarmee/master/docs/assets/og-image.png">
+
+  <!-- Favicon SVG -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%236366F1'/><path d='M50 20v30l20 12' stroke='%23ffffff' stroke-width='8' stroke-linecap='round'/><path d='M35 85l15-20 15 20' stroke='%2310B981' stroke-width='6' stroke-linecap='round' fill='none'/></svg>">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Background Glow Effects -->
+  <div class="glow-sphere glow-1"></div>
+  <div class="glow-sphere glow-2"></div>
+  <div class="glow-sphere glow-3"></div>
+
+  <!-- Navigation -->
+  <nav class="navbar" id="navbar">
+    <div class="container nav-content">
+      <a href="#" class="brand">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="13" r="8"></circle>
+            <path d="M12 9v4l2 2"></path>
+            <path d="M5 3L2 6"></path>
+            <path d="M22 6l-3-3"></path>
+            <path d="M6.38 18.7 4 21"></path>
+            <path d="M17.64 18.67 20 21"></path>
+          </svg>
+        </div>
+        <span class="brand-text">WakeWalk</span>
+      </a>
+
+      <div class="nav-links" id="navLinks">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#challenges">Challenges</a>
+        <a href="#demo">Live Demo</a>
+        <a href="#privacy">Privacy</a>
+      </div>
+
+      <div class="nav-actions">
+        <a href="https://github.com/rktiwari00/Alarmee" target="_blank" rel="noopener noreferrer" class="btn btn-outline" id="github-star-btn">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <span>Star on GitHub</span>
+        </a>
+        <a href="https://github.com/rktiwari00/Alarmee/releases/latest" target="_blank" rel="noopener noreferrer" class="btn btn-primary" id="nav-download-btn">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Download APK</span>
+        </a>
+      </div>
+
+      <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle Navigation">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <header class="hero-section">
+    <div class="container hero-grid">
+      <div class="hero-text">
+        <div class="badge-pill">
+          <span class="badge-dot"></span>
+          <span>Open Source • Android 12–15 • 100% Free & Ad-Free</span>
+        </div>
+        <h1 class="hero-title">The Alarm That <span class="gradient-text">Actually Gets You</span> Out Of Bed.</h1>
+        <p class="hero-subtitle">
+          Designed for heavy sleepers who sleep through standard chimes or snooze unconsciously. Wakes your conscious mind using your <strong>phone call ringtone</strong> and requires <strong>verified physical steps</strong> or a <strong>household code scan</strong> to silence.
+        </p>
+
+        <div class="hero-cta-group">
+          <a href="https://github.com/rktiwari00/Alarmee/releases/latest" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-lg" id="hero-download-btn">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Download APK (v1.0.0)</span>
+          </a>
+          <a href="https://github.com/rktiwari00/Alarmee" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-lg" id="hero-source-btn">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            <span>View Source Code</span>
+          </a>
+        </div>
+
+        <div class="hero-stats">
+          <div class="stat-item">
+            <span class="stat-number">0</span>
+            <span class="stat-label">Ads or Trackers</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-number">100%</span>
+            <span class="stat-label">On-Device Privacy</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-number">0.0%</span>
+            <span class="stat-label">Doze Cutoff Rate</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hero Interactive Phone Mockup -->
+      <div class="hero-visual">
+        <div class="phone-frame">
+          <div class="phone-speaker"></div>
+          <div class="phone-screen">
+            <!-- Simulated Alarm UI -->
+            <div class="mockup-header">
+              <span class="mockup-time">07:00 AM</span>
+              <span class="mockup-chip">Incoming Alarm</span>
+            </div>
+
+            <div class="mockup-alarm-card">
+              <div class="call-pulse-ring"></div>
+              <div class="alarm-icon-box">
+                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+              </div>
+              <h3 class="mockup-title">Phone Call Ringtone</h3>
+              <p class="mockup-sub">Ringing via Alarm Stream • USAGE_ALARM</p>
+            </div>
+
+            <div class="mockup-progress-card">
+              <div class="progress-info">
+                <span>Walk to Dismiss</span>
+                <span class="step-count-display"><strong id="heroStepCount">48</strong> / 150 Steps</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="heroProgressBar" style="width: 32%;"></div>
+              </div>
+              <p class="anti-cheat-status">✓ Anti-Cheat: Authentic Cadence (1.8 Hz)</p>
+            </div>
+
+            <button class="mockup-interact-btn" id="heroSimulateStepBtn">
+              🚶 Simulate Step (+1)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Problem vs Solution Comparison -->
+  <section class="section comparison-section" id="how-it-works">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">Why Standard Alarms Fail</h2>
+        <p class="section-subtitle">The science behind why you turn off alarms half-asleep without remembering it.</p>
+      </div>
+
+      <div class="comparison-grid">
+        <div class="card comparison-card bad-card">
+          <div class="card-tag">Traditional Alarms</div>
+          <h3 class="card-title">Subconscious Snoozing</h3>
+          <ul class="feature-list">
+            <li>
+              <span class="icon-bad">✕</span>
+              <span><strong>Gentle Chimes:</strong> Your brain learns to filter them out as ambient white noise during REM sleep.</span>
+            </li>
+            <li>
+              <span class="icon-bad">✕</span>
+              <span><strong>One-Tap Dismissal:</strong> Muscle memory enables you to swipe off alarms while remaining 95% asleep.</span>
+            </li>
+            <li>
+              <span class="icon-bad">✕</span>
+              <span><strong>Doze Mode Cutoffs:</strong> Android battery optimizations kill or silence background playback after 15 seconds.</span>
+            </li>
+            <li>
+              <span class="icon-bad">✕</span>
+              <span><strong>Stay in Bed:</strong> Mental math games can easily be solved right from your pillow before going back to sleep.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card comparison-card good-card">
+          <div class="card-tag good-tag">WakeWalk Solution</div>
+          <h3 class="card-title">Cognitive & Physical Awakening</h3>
+          <ul class="feature-list">
+            <li>
+              <span class="icon-good">✓</span>
+              <span><strong>Phone Call Ringtone:</strong> Triggers instinctive neurological alertness because phone calls signal urgent interaction.</span>
+            </li>
+            <li>
+              <span class="icon-good">✓</span>
+              <span><strong>Physical Step Verification:</strong> Forces you out of bed to physically walk 50–300 steps before the alarm silences.</span>
+            </li>
+            <li>
+              <span class="icon-good">✓</span>
+              <span><strong>Physical Household QR Code:</strong> Requires walking across your home to scan your coffee jar or bathroom sink barcode.</span>
+            </li>
+            <li>
+              <span class="icon-good">✓</span>
+              <span><strong>Rock-Solid Reliability:</strong> Employs <code>USE_EXACT_ALARM</code>, <code>setAlarmClock</code>, and CPU wake locks so Doze mode never interferes.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Core Features Grid -->
+  <section class="section features-section" id="features">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">Engineered For Zero Morning Excuses</h2>
+        <p class="section-subtitle">Every feature is built around the single invariant: <em>alarm reliability takes precedence over everything else.</em></p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-box">
+          <div class="feature-icon icon-phone">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Phone Call Ringtone</h3>
+          <p class="feature-desc">Defaults to your phone's active incoming ringtone. Sounds via the dedicated system Alarm stream so DND and silent profiles cannot mute it.</p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-icon icon-walk">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="5" r="2"></circle>
+              <path d="M10 22v-6l-2-2 3-5 3 2 3-1"></path>
+              <path d="M14 14l2 8"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Anti-Cheat Step Counter</h3>
+          <p class="feature-desc">Utilizes hardware step sensors and 3D accelerometer physics. Rejects rapid bed shaking or vibrating phone cheats with cadence validation.</p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-icon icon-qr">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+          </div>
+          <h3 class="feature-title">Household QR / Barcode Gate</h3>
+          <p class="feature-desc">Scan any barcode in your home (toothpaste in bathroom, coffee in kitchen). You cannot silence the alarm without standing in that room.</p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-icon icon-shield">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Keyguard & Lockscreen Bypass</h3>
+          <p class="feature-desc">Wakes your screen and shows the full-screen challenge immediately on top of the lockscreen without needing your pin or biometric unlock.</p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-icon icon-volume">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Gentle 10s Volume Ramping</h3>
+          <p class="feature-desc">Smoothly ramps up from 20% to 100% volume over 10 seconds. Enforces a volume floor so accidentally lowered sliders won't silence it.</p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-icon icon-emergency">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <h3 class="feature-title">Emergency Dismissal Safety</h3>
+          <p class="feature-desc">In case of an injury or real-world emergency, type "I AM AWAKE" to immediately dismiss. Never blocks system 911/SOS emergency calls.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Demo Simulator Section -->
+  <section class="section demo-section" id="demo">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">Interactive Morning Simulator</h2>
+        <p class="section-subtitle">Experience how WakeWalk operates during a real waking session.</p>
+      </div>
+
+      <div class="interactive-demo-card">
+        <div class="demo-tabs">
+          <button class="demo-tab-btn active" data-tab="walk-tab">🚶 Walk Challenge</button>
+          <button class="demo-tab-btn" data-tab="qr-tab">📷 QR Barcode Gate</button>
+          <button class="demo-tab-btn" data-tab="audio-tab">📞 Call Ringtone Audio</button>
+        </div>
+
+        <!-- Walk Tab Content -->
+        <div class="demo-tab-pane active" id="walk-tab">
+          <div class="demo-content-grid">
+            <div class="demo-controls">
+              <h3>Real-Time Step Accumulator</h3>
+              <p>WakeWalk checks each step timestamp. Steps spaced closer than 320ms are identified as frantic phone shaking and rejected.</p>
+              
+              <div class="demo-metric-row">
+                <div class="demo-metric">
+                  <span class="metric-label">Target Steps</span>
+                  <span class="metric-value">150</span>
+                </div>
+                <div class="demo-metric">
+                  <span class="metric-label">Steps Validated</span>
+                  <span class="metric-value" id="demoStepVal">0</span>
+                </div>
+                <div class="demo-metric">
+                  <span class="metric-label">Cadence Status</span>
+                  <span class="metric-value status-good" id="demoCadenceStatus">Ready</span>
+                </div>
+              </div>
+
+              <div class="btn-group">
+                <button class="btn btn-primary" id="demoWalkStepBtn">🚶 Take Authentic Step</button>
+                <button class="btn btn-outline" id="demoShakeCheatBtn">⚡ Try Shaking Phone</button>
+                <button class="btn btn-secondary" id="demoResetBtn">Reset</button>
+              </div>
+              <p class="demo-hint" id="demoLogText">Click "Take Authentic Step" to simulate waking up.</p>
+            </div>
+
+            <div class="demo-visualizer">
+              <div class="circular-progress-wrap">
+                <svg class="circular-chart" viewBox="0 0 36 36">
+                  <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path class="circle" id="demoCircleProgress" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                </svg>
+                <div class="circular-inner">
+                  <span class="circular-percent" id="demoPercentText">0%</span>
+                  <span class="circular-label">Goal Complete</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- QR Tab Content -->
+        <div class="demo-tab-pane" id="qr-tab">
+          <div class="demo-content-grid">
+            <div class="demo-controls">
+              <h3>Bathroom / Kitchen Target Gate</h3>
+              <p>Registered household item: <strong>Toothpaste (UPC 012000046452)</strong> located in Bathroom Sink.</p>
+              <p>WakeWalk combines dual verification: you must walk 15 steps to reach the room, then point your camera at the barcode.</p>
+              
+              <div class="qr-preview-box">
+                <div class="qr-target-code">
+                  <svg viewBox="0 0 100 100" width="100" height="100">
+                    <rect x="0" y="0" width="30" height="30" fill="#6366F1"/>
+                    <rect x="70" y="0" width="30" height="30" fill="#6366F1"/>
+                    <rect x="0" y="70" width="30" height="30" fill="#6366F1"/>
+                    <rect x="10" y="10" width="10" height="10" fill="#fff"/>
+                    <rect x="80" y="10" width="10" height="10" fill="#fff"/>
+                    <rect x="10" y="80" width="10" height="10" fill="#fff"/>
+                    <circle cx="50" cy="50" r="10" fill="#10B981"/>
+                  </svg>
+                  <span>Bathroom Toothpaste Code</span>
+                </div>
+                <button class="btn btn-primary" id="demoScanQrBtn">📷 Scan Household Code</button>
+              </div>
+              <p class="demo-hint" id="demoQrStatus">Status: Awaiting physical scan in bathroom...</p>
+            </div>
+
+            <div class="demo-visualizer">
+              <div class="scanner-frame-box" id="scannerVisualFrame">
+                <div class="scanner-laser" id="scannerLaser"></div>
+                <div class="scanner-status-text" id="scannerStatusText">Camera Scanner Ready</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Audio Tab Content -->
+        <div class="demo-tab-pane" id="audio-tab">
+          <div class="demo-content-grid">
+            <div class="demo-controls">
+              <h3>Phone Call Ringtone Stream</h3>
+              <p>Normal alarm chimes are easily ignored. WakeWalk plays your device's actual incoming ringtone over <code>USAGE_ALARM</code>.</p>
+              
+              <div class="volume-ramp-card">
+                <div class="volume-header">
+                  <span>Gradual Volume Ramping (0s – 10s)</span>
+                  <span id="volumeRampLevel">20% Volume</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" id="volumeRampBar" style="width: 20%;"></div>
+                </div>
+              </div>
+
+              <div class="btn-group">
+                <button class="btn btn-primary" id="demoPlayRingtoneBtn">▶ Simulate Alarm Ringing</button>
+                <button class="btn btn-outline" id="demoStopRingtoneBtn">⏹ Silence Alarm</button>
+              </div>
+              <p class="demo-hint" id="demoAudioHint">Click to simulate the incoming phone call tone.</p>
+            </div>
+
+            <div class="demo-visualizer">
+              <div class="audio-waves" id="audioWavesBox">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Privacy & Open Source -->
+  <section class="section privacy-section" id="privacy">
+    <div class="container text-center">
+      <div class="privacy-badge">🔒 100% On-Device & Privacy Focused</div>
+      <h2 class="section-title">Zero Analytics. Zero Servers. Total Transparency.</h2>
+      <p class="privacy-text">
+        Morning alarms are intimately personal. WakeWalk requires no login, connects to no tracking servers, and stores all alarms, movement metrics, and reference codes strictly inside your local device's Room database.
+      </p>
+
+      <div class="specs-grid">
+        <div class="spec-card">
+          <span class="spec-value">GPL / MIT</span>
+          <span class="spec-label">Open Source License</span>
+        </div>
+        <div class="spec-card">
+          <span class="spec-value">SDK 26–35</span>
+          <span class="spec-label">Android 8.0 through 15</span>
+        </div>
+        <div class="spec-card">
+          <span class="spec-value">0 KB</span>
+          <span class="spec-label">Telemetry Uploaded</span>
+        </div>
+        <div class="spec-card">
+          <span class="spec-value">Kotlin</span>
+          <span class="spec-label">100% Modern Jetpack Compose</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Support & Coffee Callout -->
+  <section class="section support-section" id="support">
+    <div class="container">
+      <div class="support-card">
+        <div class="support-content">
+          <h2 class="support-title">Love waking up on time? Support the project ☕</h2>
+          <p class="support-desc">
+            WakeWalk is built and maintained by an independent developer with zero advertising revenue. Your support fuels ongoing updates and helps keep it completely free for everyone.
+          </p>
+          <div class="support-buttons">
+            <a href="https://buymeacoffee.com/rktiwari00" target="_blank" rel="noopener noreferrer" class="btn btn-coffee" id="coffee-btn">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M20.216 6.415l-.132-.666c-.119-.597-.384-1.157-.775-1.635-.391-.478-.891-.849-1.464-1.087-.573-.238-1.196-.343-1.821-.309-.625.034-1.233.208-1.782.511-.322.178-.62.387-.891.624C12.87 3.375 12.016 3 11.118 3H4.882C3.842 3 3 3.842 3 4.882v10.236C3 16.158 3.842 17 4.882 17h6.236c1.04 0 1.882-.842 1.882-1.882v-.543c.962.348 1.996.485 3.018.399.985-.083 1.933-.423 2.76-1.002.827-.579 1.488-1.362 1.92-2.29.432-.928.608-1.954.512-2.981-.048-.517-.184-1.023-.404-1.49l.61-.196c.642-.206 1.18-.622 1.528-1.18.348-.558.468-1.226.34-1.885l-.068-.344c-.119-.597-.384-1.157-.775-1.635-.391-.478-.891-.849-1.464-1.087-.573-.238-1.196-.343-1.821-.309-.625.034-1.233.208-1.782.511zm-4.708 7.027c-.702.492-1.508.78-2.355.85-.724.06-1.455-.037-2.136-.282v-7.14c.681-.245 1.412-.342 2.136-.282.847.07 1.653.358 2.355.85.702.492 1.263 1.157 1.63 1.932.367.775.516 1.646.434 2.514-.082.868-.396 1.706-.912 2.433-.516.727-1.218 1.307-2.032 1.684l.88 2.435z"/>
+              </svg>
+              <span>Buy Me a Coffee</span>
+            </a>
+            <a href="https://github.com/rktiwari00/Alarmee" target="_blank" rel="noopener noreferrer" class="btn btn-outline" id="github-sponsor-btn">
+              <span>❤️ Sponsor on GitHub</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <span class="footer-logo">WakeWalk</span>
+        <p>The anti-cheat alarm engineered to wake deep sleepers.</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/rktiwari00/Alarmee" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+        <a href="https://github.com/rktiwari00/Alarmee/releases" target="_blank" rel="noopener noreferrer">Releases & APKs</a>
+        <a href="https://github.com/rktiwari00/Alarmee/blob/master/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>
+        <a href="https://github.com/rktiwari00/Alarmee/issues" target="_blank" rel="noopener noreferrer">Report Issue</a>
+      </div>
+      <div class="footer-copy">
+        <p>&copy; 2026 WakeWalk Contributors. Open Source under MIT License.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
