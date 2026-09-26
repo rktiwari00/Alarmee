@@ -21,9 +21,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Warning
+import app.wakewalk.alarm.audio.VolumeDuckingState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -173,6 +175,8 @@ private fun WalkChallengeRingingContent(
                 letterSpacing = 2.sp,
                 color = MaterialTheme.colorScheme.primary
             )
+            Spacer(modifier = Modifier.height(10.dp))
+            VolumeStatusBadge(volumeDuckingState = uiState.volumeDuckingState)
 
             // Sensor fallback notice
             val mode = uiState.session?.trackingMode
@@ -326,6 +330,8 @@ private fun QrChallengeRingingContent(
                 letterSpacing = 2.sp,
                 color = MaterialTheme.colorScheme.primary
             )
+            Spacer(modifier = Modifier.height(6.dp))
+            VolumeStatusBadge(volumeDuckingState = uiState.volumeDuckingState)
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -802,5 +808,64 @@ private fun LongPressEmergencyControl(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+private data class VolumeBadgeConfig(
+    val backgroundColor: Color,
+    val textColor: Color,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val text: String
+)
+
+@Composable
+private fun VolumeStatusBadge(
+    volumeDuckingState: VolumeDuckingState,
+    modifier: Modifier = Modifier
+) {
+    val config = when (volumeDuckingState) {
+        VolumeDuckingState.DUCKED_WALKING -> VolumeBadgeConfig(
+            backgroundColor = Color(0xFF1B3820),
+            textColor = Color(0xFF81C784),
+            icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+            text = "🚶 30% Volume (Walking Active)"
+        )
+        VolumeDuckingState.INACTIVITY_RAMPING_UP -> VolumeBadgeConfig(
+            backgroundColor = Color(0xFF3E2723),
+            textColor = Color(0xFFFFB74D),
+            icon = Icons.Default.Warning,
+            text = "⚠️ Keep Moving! Volume ramping up..."
+        )
+        VolumeDuckingState.FULL_VOLUME -> VolumeBadgeConfig(
+            backgroundColor = Color(0xFF1C1C1E),
+            textColor = Color(0xFFE0E0E0),
+            icon = Icons.AutoMirrored.Filled.VolumeUp,
+            text = "🔊 100% Hardcore Volume"
+        )
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = config.backgroundColor),
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = config.icon,
+                contentDescription = null,
+                tint = config.textColor,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = config.text,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = config.textColor
+            )
+        }
     }
 }

@@ -23,6 +23,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import app.wakewalk.alarm.audio.AudioController
+import app.wakewalk.alarm.audio.VolumeDuckingState
+
 data class QrScanEvaluation(
     val isComplete: Boolean,
     val errorMessage: String? = null
@@ -42,14 +45,16 @@ data class AlarmUiState(
     val isEmergencyDismissed: Boolean = false,
     val emergencyDialogVisible: Boolean = false,
     val emergencyPhraseInput: String = "",
-    val longPressDurationMs: Long = 0L
+    val longPressDurationMs: Long = 0L,
+    val volumeDuckingState: VolumeDuckingState = VolumeDuckingState.FULL_VOLUME
 )
 
 @HiltViewModel
 class AlarmViewModel @Inject constructor(
     private val wakeSessionRepository: WakeSessionRepository,
     private val preferencesRepository: UserPreferencesRepository,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    val audioController: AudioController? = null
 ) : ViewModel() {
 
     private val emergencyPolicy = EmergencyDismissalPolicy()
@@ -65,6 +70,14 @@ class AlarmViewModel @Inject constructor(
     val uiState: StateFlow<AlarmUiState> = _uiState.asStateFlow()
 
     init {
+        if (audioController != null) {
+            viewModelScope.launch {
+                audioController.volumeDuckingState.collect { duckState ->
+                    _uiState.value = _uiState.value.copy(volumeDuckingState = duckState)
+                }
+            }
+        }
+
         viewModelScope.launch {
             // Restore session if needed
             wakeSessionRepository.restoreSessionFromDb()

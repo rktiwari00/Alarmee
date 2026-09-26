@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import android.net.Uri
+import app.wakewalk.domain.sound.AlarmSoundRegistry
+import app.wakewalk.domain.sound.SoundItem
 import java.time.LocalTime
 import javax.inject.Inject
 
@@ -29,16 +32,19 @@ data class CreateEditAlarmUiState(
     val soundTitle: String = AudioController.TITLE_PHONE_RINGTONE,
     val vibrationEnabled: Boolean = true,
     val gradualVolume: Boolean = true,
+    val lowerVolumeWhileWalking: Boolean = true,
     val snoozeEnabled: Boolean = false,
     val isEditMode: Boolean = false,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    val currentlyPlayingPreviewUri: String? = null
 )
 
 @HiltViewModel
 class CreateEditAlarmViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val alarmScheduler: AlarmScheduler,
-    private val audioController: AudioController? = null
+    val soundRegistry: AlarmSoundRegistry = AlarmSoundRegistry(),
+    val audioController: AudioController? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateEditAlarmUiState())
@@ -67,6 +73,7 @@ class CreateEditAlarmViewModel @Inject constructor(
                     soundTitle = soundTitle,
                     vibrationEnabled = alarm.vibrationEnabled,
                     gradualVolume = alarm.gradualVolume,
+                    lowerVolumeWhileWalking = alarm.lowerVolumeWhileWalking,
                     snoozeEnabled = alarm.snoozeEnabled,
                     isEditMode = true
                 )
@@ -79,6 +86,7 @@ class CreateEditAlarmViewModel @Inject constructor(
                 minute = 0,
                 soundUri = null,
                 soundTitle = AudioController.TITLE_PHONE_RINGTONE,
+                lowerVolumeWhileWalking = true,
                 isEditMode = false
             )
         }
@@ -147,8 +155,36 @@ class CreateEditAlarmViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(gradualVolume = enabled)
     }
 
+    fun setLowerVolumeWhileWalking(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(lowerVolumeWhileWalking = enabled)
+    }
+
     fun setSnoozeEnabled(enabled: Boolean) {
         _uiState.value = _uiState.value.copy(snoozeEnabled = enabled)
+    }
+
+    fun previewSound(sound: SoundItem) {
+        if (_uiState.value.currentlyPlayingPreviewUri == sound.contentUri) {
+            stopPreview()
+            return
+        }
+        _uiState.value = _uiState.value.copy(currentlyPlayingPreviewUri = sound.contentUri)
+        val uri = if (sound.rawResName == null) {
+            try { Uri.parse(sound.contentUri) } catch (_: Exception) { null }
+        } else null
+        audioController?.previewSound(rawResName = sound.rawResName, uri = uri) {
+            _uiState.value = _uiState.value.copy(currentlyPlayingPreviewUri = null)
+        }
+    }
+
+    fun stopPreview() {
+        audioController?.stopPreview()
+        _uiState.value = _uiState.value.copy(currentlyPlayingPreviewUri = null)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopPreview()
     }
 
     fun isSaveAllowed(): Boolean {
@@ -174,6 +210,7 @@ class CreateEditAlarmViewModel @Inject constructor(
                 soundUri = state.soundUri,
                 vibrationEnabled = state.vibrationEnabled,
                 gradualVolume = state.gradualVolume,
+                lowerVolumeWhileWalking = state.lowerVolumeWhileWalking,
                 snoozeEnabled = state.snoozeEnabled,
                 updatedAtEpochMs = System.currentTimeMillis()
             )

@@ -40,6 +40,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -144,6 +145,40 @@ fun SettingsScreen(
                     selectedTarget = preferences.defaultStepTarget,
                     onTargetSelected = { viewModel.setDefaultStepTarget(it) }
                 )
+            }
+
+            // Walking Volume Ducking
+            item {
+                SectionHeader(title = "Walking Volume Ducking")
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Lower volume while walking",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Default for new alarms: Ducks volume to 30% after 10 active steps. Ramps back up if walking pauses for 8 seconds.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = preferences.lowerVolumeWhileWalking,
+                            onCheckedChange = { viewModel.setLowerVolumeWhileWalking(it) }
+                        )
+                    }
+                }
             }
 
             // Theme Selection

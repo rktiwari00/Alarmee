@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,8 +34,14 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
+import app.wakewalk.domain.sound.AlarmSoundRegistry
+import app.wakewalk.domain.sound.SoundCategory
+import app.wakewalk.domain.sound.SoundItem
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -454,6 +461,18 @@ fun CreateEditAlarmScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
+                        Text("Lower Volume While Walking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Ducks volume to 30% after 10 steps. Ramps back up if walking pauses for 8s.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = state.lowerVolumeWhileWalking, onCheckedChange = { viewModel.setLowerVolumeWhileWalking(it) })
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text("Emergency Snooze", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Text("Allows single 5-minute snooze", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -565,80 +584,200 @@ fun CreateEditAlarmScreen(
 
         // Sound & Tone Selection Dialog
         if (showSoundDialog) {
-            AlertDialog(
-                onDismissRequest = { showSoundDialog = false },
-                title = { Text("Alarm Sound & Tone") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(
-                            text = "Choose the sound that rings when your alarm goes off:",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+            SoundPickerDialog(
+                currentSoundUri = state.soundUri,
+                currentlyPlayingUri = state.currentlyPlayingPreviewUri,
+                soundRegistry = viewModel.soundRegistry,
+                onSelectSound = { uri, title ->
+                    viewModel.setSoundUri(uri, title)
+                },
+                onPreviewSound = { sound ->
+                    viewModel.previewSound(sound)
+                },
+                onStopPreview = {
+                    viewModel.stopPreview()
+                },
+                onLaunchDevicePicker = {
+                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE or RingtoneManager.TYPE_ALARM)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Alarm Tone")
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                        state.soundUri?.let { uriStr ->
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(uriStr))
+                        }
+                    }
+                    ringtonePickerLauncher.launch(intent)
+                },
+                onDismiss = {
+                    viewModel.stopPreview()
+                    showSoundDialog = false
+                }
+            )
+        }
+    }
+}
+
+enum class SoundPickerTab(val title: String) {
+    HARSH("⚡ Harsh"),
+    SMOOTH("🌿 Smooth"),
+    PHONE("📞 Phone"),
+    RANDOM("🎲 Daily Random"),
+    DEVICE("📱 Device")
+}
+
+@Composable
+private fun SoundPickerDialog(
+    currentSoundUri: String?,
+    currentlyPlayingUri: String?,
+    soundRegistry: AlarmSoundRegistry,
+    onSelectSound: (uri: String?, title: String) -> Unit,
+    onPreviewSound: (SoundItem) -> Unit,
+    onStopPreview: () -> Unit,
+    onLaunchDevicePicker: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedTab by remember { mutableStateOf(SoundPickerTab.HARSH) }
+
+    AlertDialog(
+        onDismissRequest = {
+            onStopPreview()
+            onDismiss()
+        },
+        title = {
+            Column {
+                Text("Alarm Sound & Tone", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Curated royalty-free loops & ringtones",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Category Filter Chips
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SoundPickerTab.values().forEach { tab ->
+                        FilterChip(
+                            selected = selectedTab == tab,
+                            onClick = {
+                                onStopPreview()
+                                selectedTab = tab
+                            },
+                            label = { Text(tab.title) }
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+                }
 
-                        // Option 1: Phone Ringtone (Default)
-                        OutlinedCard(
-                            shape = RoundedCornerShape(12.dp),
-                            border = if (state.soundUri == null || state.soundUri == AudioController.URI_DEFAULT_CALL_RINGTONE) {
-                                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                            } else {
-                                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.setSoundUri(null, AudioController.TITLE_PHONE_RINGTONE)
-                                    showSoundDialog = false
-                                }
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
-                                Text(
-                                    text = "📞 Phone Ringtone (Default)",
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                Text(
-                                    text = "Uses your incoming phone call ringtone. Familiar tone is proven to wake you reliably.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                Spacer(modifier = Modifier.height(2.dp))
+
+                when (selectedTab) {
+                    SoundPickerTab.HARSH -> {
+                        val harshSounds = soundRegistry.getSoundsByCategory(SoundCategory.HARSH)
+                        harshSounds.forEach { sound ->
+                            SoundItemCard(
+                                sound = sound,
+                                isSelected = currentSoundUri == sound.contentUri,
+                                isPlayingPreview = currentlyPlayingUri == sound.contentUri,
+                                onSelect = {
+                                    onStopPreview()
+                                    onSelectSound(sound.contentUri, sound.title)
+                                    onDismiss()
+                                },
+                                onTogglePreview = { onPreviewSound(sound) }
+                            )
                         }
-
-                        // Option 2: Standard Alarm Sound
-                        OutlinedCard(
-                            shape = RoundedCornerShape(12.dp),
-                            border = if (state.soundUri == AudioController.URI_DEFAULT_ALARM) {
-                                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                            } else {
-                                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.setSoundUri(AudioController.URI_DEFAULT_ALARM, AudioController.TITLE_STANDARD_ALARM)
-                                    showSoundDialog = false
-                                }
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
-                                Text(
-                                    text = "⏰ Standard Alarm Sound",
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                Text(
-                                    text = "Standard Android system alarm chime.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                    }
+                    SoundPickerTab.SMOOTH -> {
+                        val smoothSounds = soundRegistry.getSoundsByCategory(SoundCategory.SMOOTH)
+                        smoothSounds.forEach { sound ->
+                            SoundItemCard(
+                                sound = sound,
+                                isSelected = currentSoundUri == sound.contentUri,
+                                isPlayingPreview = currentlyPlayingUri == sound.contentUri,
+                                onSelect = {
+                                    onStopPreview()
+                                    onSelectSound(sound.contentUri, sound.title)
+                                    onDismiss()
+                                },
+                                onTogglePreview = { onPreviewSound(sound) }
+                            )
                         }
+                    }
+                    SoundPickerTab.PHONE -> {
+                        val phoneSounds = soundRegistry.getSoundsByCategory(SoundCategory.PHONE_CALL)
+                        phoneSounds.forEach { sound ->
+                            val isDefaultSelected = (currentSoundUri == null || currentSoundUri == AlarmSoundRegistry.TOKEN_DEFAULT_CALL_RINGTONE) && sound.id == AlarmSoundRegistry.ID_PHONE_DEFAULT
+                            val isStandardAlarmSelected = currentSoundUri == AlarmSoundRegistry.TOKEN_DEFAULT_ALARM && sound.id == AlarmSoundRegistry.ID_ALARM_STANDARD
+                            val isCustomSelected = currentSoundUri == sound.contentUri
+                            val isSelected = isDefaultSelected || isStandardAlarmSelected || isCustomSelected
 
-                        // Option 3: Choose from Device...
+                            SoundItemCard(
+                                sound = sound,
+                                isSelected = isSelected,
+                                isPlayingPreview = currentlyPlayingUri == sound.contentUri,
+                                onSelect = {
+                                    onStopPreview()
+                                    val uri = if (sound.id == AlarmSoundRegistry.ID_PHONE_DEFAULT) null else sound.contentUri
+                                    onSelectSound(uri, sound.title)
+                                    onDismiss()
+                                },
+                                onTogglePreview = { onPreviewSound(sound) }
+                            )
+                        }
+                    }
+                    SoundPickerTab.RANDOM -> {
+                        RandomSoundCard(
+                            title = "🎲 Randomize (All Categories)",
+                            description = "Picks a different harsh, smooth, or phone tone every morning so you never get used to one.",
+                            isSelected = currentSoundUri == AlarmSoundRegistry.TOKEN_RANDOM_ALL,
+                            onSelect = {
+                                onStopPreview()
+                                onSelectSound(AlarmSoundRegistry.TOKEN_RANDOM_ALL, "🎲 Random (All Sounds)")
+                                onDismiss()
+                            }
+                        )
+                        RandomSoundCard(
+                            title = "⚡ Randomize (Harsh Only)",
+                            description = "Rotates siren, bugle, rock, and digital tones daily for an intense awakening.",
+                            isSelected = currentSoundUri == AlarmSoundRegistry.TOKEN_RANDOM_HARSH,
+                            onSelect = {
+                                onStopPreview()
+                                onSelectSound(AlarmSoundRegistry.TOKEN_RANDOM_HARSH, "🎲 Random (Harsh / Intense)")
+                                onDismiss()
+                            }
+                        )
+                        RandomSoundCard(
+                            title = "🌿 Randomize (Smooth Only)",
+                            description = "Rotates gentle acoustic piano, ambient chimes, and forest birds daily for a calm morning.",
+                            isSelected = currentSoundUri == AlarmSoundRegistry.TOKEN_RANDOM_SMOOTH,
+                            onSelect = {
+                                onStopPreview()
+                                onSelectSound(AlarmSoundRegistry.TOKEN_RANDOM_SMOOTH, "🎲 Random (Smooth / Gentle)")
+                                onDismiss()
+                            }
+                        )
+                    }
+                    SoundPickerTab.DEVICE -> {
                         OutlinedCard(
                             shape = RoundedCornerShape(12.dp),
-                            border = if (state.soundUri != null && state.soundUri != AudioController.URI_DEFAULT_CALL_RINGTONE && state.soundUri != AudioController.URI_DEFAULT_ALARM) {
+                            border = if (currentSoundUri != null &&
+                                currentSoundUri != AlarmSoundRegistry.TOKEN_DEFAULT_CALL_RINGTONE &&
+                                currentSoundUri != AlarmSoundRegistry.TOKEN_DEFAULT_ALARM &&
+                                !currentSoundUri.startsWith("content://wakewalk/sound/")
+                            ) {
                                 BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
                             } else {
                                 BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -646,17 +785,9 @@ fun CreateEditAlarmScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    showSoundDialog = false
-                                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
-                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE or RingtoneManager.TYPE_ALARM)
-                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Alarm Tone")
-                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
-                                        state.soundUri?.let { uriStr ->
-                                            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(uriStr))
-                                        }
-                                    }
-                                    ringtonePickerLauncher.launch(intent)
+                                    onStopPreview()
+                                    onDismiss()
+                                    onLaunchDevicePicker()
                                 }
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
@@ -666,19 +797,134 @@ fun CreateEditAlarmScreen(
                                     style = MaterialTheme.typography.bodyLarge
                                 )
                                 Text(
-                                    text = "Pick any ringtone or audio file installed on your device.",
+                                    text = "Pick any ringtone or audio file installed on your device storage.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showSoundDialog = false }) {
-                        Text("Cancel")
-                    }
                 }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onStopPreview()
+                onDismiss()
+            }) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun SoundItemCard(
+    sound: SoundItem,
+    isSelected: Boolean,
+    isPlayingPreview: Boolean,
+    onSelect: () -> Unit,
+    onTogglePreview: () -> Unit
+) {
+    OutlinedCard(
+        shape = RoundedCornerShape(12.dp),
+        border = if (isSelected) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = sound.title,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = onTogglePreview,
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        color = if (isPlayingPreview) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        shape = CircleShape
+                    )
+            ) {
+                Icon(
+                    imageVector = if (isPlayingPreview) Icons.Default.Stop else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlayingPreview) "Stop Preview" else "Play Preview",
+                    tint = if (isPlayingPreview) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RandomSoundCard(
+    title: String,
+    description: String,
+    isSelected: Boolean,
+    onSelect: () -> Unit
+) {
+    OutlinedCard(
+        shape = RoundedCornerShape(12.dp),
+        border = if (isSelected) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect() }
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

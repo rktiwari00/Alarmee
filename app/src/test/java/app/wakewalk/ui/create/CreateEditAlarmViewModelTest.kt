@@ -108,4 +108,28 @@ class CreateEditAlarmViewModelTest {
         val savedAlarm = fakeRepository.insertedAlarm
         assertEquals("content://media/internal/audio/media/42", savedAlarm?.soundUri)
     }
+
+    @Test
+    fun testLowerVolumeWhileWalkingDefaultsToTrueAndCanBeToggled() = runTest {
+        assertTrue(viewModel.uiState.value.lowerVolumeWhileWalking)
+
+        viewModel.setLowerVolumeWhileWalking(false)
+        assertFalse(viewModel.uiState.value.lowerVolumeWhileWalking)
+
+        var saved = false
+        viewModel.saveAlarm { saved = true }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(saved)
+        val savedAlarm = fakeRepository.insertedAlarm
+        assertEquals(false, savedAlarm?.lowerVolumeWhileWalking)
+    }
+
+    @Test
+    fun testSoundRegistryAvailableInViewModel() {
+        val harshSounds = viewModel.soundRegistry.getSoundsByCategory(app.wakewalk.domain.sound.SoundCategory.HARSH)
+        assertTrue(harshSounds.isNotEmpty())
+        val smoothSounds = viewModel.soundRegistry.getSoundsByCategory(app.wakewalk.domain.sound.SoundCategory.SMOOTH)
+        assertTrue(smoothSounds.isNotEmpty())
+    }
 }

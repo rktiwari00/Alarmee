@@ -104,4 +104,10 @@ class SettingsViewModel @Inject constructor(
             preferencesRepository.setTheme(theme)
         }
     }
+
+    fun setLowerVolumeWhileWalking(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setLowerVolumeWhileWalking(enabled)
+        }
+    }
 }
