@@ -39,7 +39,8 @@ class CreateEditAlarmViewModelTest {
     }
 
     private val fakeScheduler = object : AlarmScheduler {
-        override fun scheduleAlarm(alarm: AlarmEntity) {}
+        override fun scheduleAlarm(alarm: AlarmEntity, afterEpochMs: Long?) {}
+        override fun scheduleSnooze(alarmId: Long, snoozeDurationMinutes: Int) {}
         override fun scheduleTestAlarm(delaySeconds: Int) {}
         override fun cancelAlarm(alarmId: Long) {}
         override suspend fun reconcileAlarms() {}
@@ -84,5 +85,27 @@ class CreateEditAlarmViewModelTest {
         assertEquals("TOOTHPASTE_UPC_987654", alarm?.qrCodePayload)
         assertEquals("Bathroom Sink", alarm?.qrCodeLabel)
         assertEquals(25, alarm?.targetSteps)
+    }
+
+    @Test
+    fun testDefaultSoundUriIsCallRingtone() {
+        val state = viewModel.uiState.value
+        assertEquals(null, state.soundUri)
+        assertEquals("Phone Ringtone (Default)", state.soundTitle)
+    }
+
+    @Test
+    fun testSetCustomSoundUriUpdatesStateAndPersists() = runTest {
+        viewModel.setSoundUri("content://media/internal/audio/media/42", "Morning Breeze")
+        assertEquals("content://media/internal/audio/media/42", viewModel.uiState.value.soundUri)
+        assertEquals("Morning Breeze", viewModel.uiState.value.soundTitle)
+
+        var saved = false
+        viewModel.saveAlarm { saved = true }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(saved)
+        val savedAlarm = fakeRepository.insertedAlarm
+        assertEquals("content://media/internal/audio/media/42", savedAlarm?.soundUri)
     }
 }

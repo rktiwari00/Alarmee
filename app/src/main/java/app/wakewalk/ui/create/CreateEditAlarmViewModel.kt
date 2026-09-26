@@ -2,6 +2,7 @@ package app.wakewalk.ui.create
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.wakewalk.alarm.audio.AudioController
 import app.wakewalk.alarm.scheduler.AlarmScheduler
 import app.wakewalk.data.local.entity.AlarmEntity
 import app.wakewalk.domain.model.ChallengeType
@@ -24,6 +25,8 @@ data class CreateEditAlarmUiState(
     val targetSteps: Int = 150,
     val qrCodePayload: String? = null,
     val qrCodeLabel: String? = null,
+    val soundUri: String? = null,
+    val soundTitle: String = AudioController.TITLE_PHONE_RINGTONE,
     val vibrationEnabled: Boolean = true,
     val gradualVolume: Boolean = true,
     val snoozeEnabled: Boolean = false,
@@ -34,7 +37,8 @@ data class CreateEditAlarmUiState(
 @HiltViewModel
 class CreateEditAlarmViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
-    private val alarmScheduler: AlarmScheduler
+    private val alarmScheduler: AlarmScheduler,
+    private val audioController: AudioController? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateEditAlarmUiState())
@@ -44,6 +48,11 @@ class CreateEditAlarmViewModel @Inject constructor(
         if (alarmId > 0) {
             viewModelScope.launch {
                 val alarm = alarmRepository.getAlarmById(alarmId) ?: return@launch
+                val soundTitle = audioController?.getSoundTitle(alarm.soundUri) ?: when (alarm.soundUri) {
+                    null, AudioController.URI_DEFAULT_CALL_RINGTONE -> AudioController.TITLE_PHONE_RINGTONE
+                    AudioController.URI_DEFAULT_ALARM -> AudioController.TITLE_STANDARD_ALARM
+                    else -> "Custom Sound"
+                }
                 _uiState.value = CreateEditAlarmUiState(
                     alarmId = alarm.id,
                     hour = alarm.hour,
@@ -54,6 +63,8 @@ class CreateEditAlarmViewModel @Inject constructor(
                     targetSteps = alarm.targetSteps,
                     qrCodePayload = alarm.qrCodePayload,
                     qrCodeLabel = alarm.qrCodeLabel,
+                    soundUri = alarm.soundUri,
+                    soundTitle = soundTitle,
                     vibrationEnabled = alarm.vibrationEnabled,
                     gradualVolume = alarm.gradualVolume,
                     snoozeEnabled = alarm.snoozeEnabled,
@@ -66,6 +77,8 @@ class CreateEditAlarmViewModel @Inject constructor(
             _uiState.value = CreateEditAlarmUiState(
                 hour = 7,
                 minute = 0,
+                soundUri = null,
+                soundTitle = AudioController.TITLE_PHONE_RINGTONE,
                 isEditMode = false
             )
         }
@@ -118,6 +131,18 @@ class CreateEditAlarmViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(vibrationEnabled = enabled)
     }
 
+    fun setSoundUri(uri: String?, title: String? = null) {
+        val resolvedTitle = title ?: audioController?.getSoundTitle(uri) ?: when (uri) {
+            null, AudioController.URI_DEFAULT_CALL_RINGTONE -> AudioController.TITLE_PHONE_RINGTONE
+            AudioController.URI_DEFAULT_ALARM -> AudioController.TITLE_STANDARD_ALARM
+            else -> "Custom Sound"
+        }
+        _uiState.value = _uiState.value.copy(
+            soundUri = uri,
+            soundTitle = resolvedTitle
+        )
+    }
+
     fun setGradualVolume(enabled: Boolean) {
         _uiState.value = _uiState.value.copy(gradualVolume = enabled)
     }
@@ -146,6 +171,7 @@ class CreateEditAlarmViewModel @Inject constructor(
                 targetSteps = state.targetSteps,
                 qrCodePayload = state.qrCodePayload,
                 qrCodeLabel = state.qrCodeLabel,
+                soundUri = state.soundUri,
                 vibrationEnabled = state.vibrationEnabled,
                 gradualVolume = state.gradualVolume,
                 snoozeEnabled = state.snoozeEnabled,
