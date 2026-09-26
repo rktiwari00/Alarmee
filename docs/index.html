@@ -25,6 +25,12 @@
   <meta property="og:description" content="Zero ads. 100% private. Wakes your conscious brain with phone call ringtones and authentic motion verification.">
   <meta property="og:image" content="https://raw.githubusercontent.com/rktiwari00/Alarmee/master/docs/assets/og-image.png">
 
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="WakeWalk — The Alarm That Actually Gets You Out Of Bed">
+  <meta name="twitter:description" content="Anti-cheat Android alarm app for deep sleepers. Phone call ringtones and physical step/QR verification.">
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/rktiwari00/Alarmee/master/docs/assets/og-image.png">
+
   <!-- Favicon SVG -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%236366F1'/><path d='M50 20v30l20 12' stroke='%23ffffff' stroke-width='8' stroke-linecap='round'/><path d='M35 85l15-20 15 20' stroke='%2310B981' stroke-width='6' stroke-linecap='round' fill='none'/></svg>">
 
@@ -63,6 +69,7 @@
         <a href="#how-it-works">How It Works</a>
         <a href="#challenges">Challenges</a>
         <a href="#demo">Live Demo</a>
+        <a href="#faq">FAQ</a>
         <a href="#privacy">Privacy</a>
       </div>
 
@@ -484,6 +491,83 @@
     </div>
   </section>
 
+  <!-- Frequently Asked Questions -->
+  <section class="section faq-section" id="faq">
+    <div class="container">
+      <div class="section-header text-center">
+        <div class="badge-pill">
+          <span>Reliability & Architecture</span>
+        </div>
+        <h2 class="section-title">Frequently Asked <span class="gradient-text">Questions</span></h2>
+        <p class="section-subtitle">
+          Everything you need to know about wake-up reliability, anti-cheat detection, and device permissions.
+        </p>
+      </div>
+
+      <div class="faq-accordion" id="faqAccordion">
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>Will WakeWalk ring if my phone is on Silent or Do Not Disturb (DND)?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="faq-answer">
+            <p><strong>Yes, absolutely.</strong> WakeWalk routes audio using Android's dedicated <code>STREAM_ALARM</code> channel with <code>AudioAttributes.USAGE_ALARM</code>. By Android operating system design, alarm streams intentionally bypass ringer mute, silent switch, and vibration-only modes to play out loud through your device speaker at full volume.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>What happens if my phone updates or restarts overnight?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="faq-answer">
+            <p>WakeWalk registers system broadcast receivers for <code>RECEIVE_BOOT_COMPLETED</code> and <code>TIME_SET</code>. As soon as your device finishes booting or your timezone changes, WakeWalk automatically recalculates the exact trigger times and reschedules all active alarms with the OS <code>AlarmManager</code>.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>Can I cheat the step counter by shaking my phone in bed?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="faq-answer">
+            <p><strong>No.</strong> WakeWalk features a multi-tier anti-cheat movement validator. It enforces a maximum human cadence threshold (rejecting steps occurring faster than 320ms or &gt;3.1 Hz) and analyzes 3D acceleration variance. Rapid shaking, pillow hitting, or bed vibrating are rejected as counterfeit steps.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>Why do Samsung, Xiaomi, or OnePlus devices kill alarms in deep sleep?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="faq-answer">
+            <p>Custom Android skins (Samsung One UI, Xiaomi HyperOS/MIUI, OnePlus OxygenOS) include aggressive proprietary battery killers that sleep foreground apps overnight. To guarantee 100% alarm delivery, open the in-app <strong>Settings → Diagnostics</strong> dashboard and set WakeWalk's Battery Optimization to <em>Unrestricted</em>.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>What if there is a real medical emergency or injury?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="faq-answer">
+            <p>WakeWalk includes a safety dismissal mechanism for emergencies. You can type the deliberate phrase <em>"I AM AWAKE"</em> or hold the emergency button continuously for 5 seconds. Additionally, system Emergency SOS shortcuts, power keys, and incoming phone calls remain completely accessible.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>Does WakeWalk collect any personal wake-up data or tracking?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="faq-answer">
+            <p><strong>Zero.</strong> The mobile app is 100% on-device and privacy-first. There are no user accounts, no login requirements, and no analytics SDKs in the Android app. All alarms, streak records, and barcode references reside exclusively in your local SQLite/Room database.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Support & Coffee Callout -->
   <section class="section support-section" id="support">
     <div class="container">
@@ -524,6 +608,7 @@
         <a href="https://github.com/sponsors/rktiwari00" target="_blank" rel="noopener noreferrer">GitHub Sponsors</a>
         <a href="https://buymeacoffee.com/rktiwari00" target="_blank" rel="noopener noreferrer">Buy Me a Coffee</a>
         <a href="https://github.com/rktiwari00/Alarmee/releases" target="_blank" rel="noopener noreferrer">Releases & APKs</a>
+        <a href="privacy.html">Privacy Policy</a>
         <a href="https://github.com/rktiwari00/Alarmee/blob/master/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>
         <a href="https://github.com/rktiwari00/Alarmee/issues" target="_blank" rel="noopener noreferrer">Report Issue</a>
       </div>

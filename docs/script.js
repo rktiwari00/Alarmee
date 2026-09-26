@@ -211,5 +211,32 @@ document.addEventListener('DOMContentLoaded', () => {
   trackBtn('github-star-btn', 'star_github', { location: 'navbar' });
   trackBtn('coffee-btn', 'support_coffee_click', { method: 'buymeacoffee' });
   trackBtn('github-sponsor-btn', 'support_sponsor_click', { method: 'github_sponsors' });
+
+  // --- FAQ Accordion Logic ---
+  const faqItems = document.querySelectorAll('.faq-item');
+  faqItems.forEach(item => {
+    const questionBtn = item.querySelector('.faq-question');
+    if (questionBtn) {
+      questionBtn.addEventListener('click', () => {
+        const isActive = item.classList.contains('active');
+        // Close other open FAQ items
+        faqItems.forEach(other => {
+          if (other !== item) {
+            other.classList.remove('active');
+            const otherBtn = other.querySelector('.faq-question');
+            if (otherBtn) otherBtn.setAttribute('aria-expanded', 'false');
+          }
+        });
+
+        // Toggle current item
+        item.classList.toggle('active', !isActive);
+        questionBtn.setAttribute('aria-expanded', (!isActive).toString());
+        if (!isActive) {
+          trackEvent('faq_expand', { question: questionBtn.querySelector('span')?.textContent || 'FAQ' });
+        }
+      });
+    }
+  });
 });
+
 
