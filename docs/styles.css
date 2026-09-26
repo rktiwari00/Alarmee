@@ -218,6 +218,20 @@ h1, h2, h3, h4 {
   box-shadow: 0 8px 24px rgba(255, 221, 0, 0.45);
 }
 
+.btn-sponsor {
+  background: linear-gradient(135deg, #EA4AAA 0%, #D12F8E 100%);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(234, 74, 170, 0.35);
+}
+
+.btn-sponsor:hover {
+  background: linear-gradient(135deg, #F35BB5 0%, #EA4AAA 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(234, 74, 170, 0.5);
+  color: #ffffff;
+}
+
 .btn-lg {
   padding: 14px 28px;
   font-size: 1.05rem;

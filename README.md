@@ -4,6 +4,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/rktiwari00/Alarmee?style=for-the-badge&color=10B981)](https://github.com/rktiwari00/Alarmee/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-yellow?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/rktiwari00)
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor%20on%20GitHub-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/rktiwari00)
 
 **🌐 Official Website & Live Simulator:** [https://rktiwari00.github.io/Alarmee/](https://rktiwari00.github.io/Alarmee/)
 
@@ -145,6 +146,16 @@ Under the in-app **Settings** tab, WakeWalk includes a live diagnostics dashboar
 
 ---
 
+## 💖 Support & Sponsoring
+
+WakeWalk is 100% free, open-source, and ad-free. If this project helps you wake up on time and build disciplined morning routines, please consider supporting ongoing development:
+
+- **GitHub Sponsors:** [sponsor rktiwari00 on GitHub](https://github.com/sponsors/rktiwari00)
+- **Buy Me a Coffee:** [buymeacoffee.com/rktiwari00](https://buymeacoffee.com/rktiwari00)
+
+---
+
 ## 📄 License
 
 This project is open-source under the [MIT License](LICENSE).
+

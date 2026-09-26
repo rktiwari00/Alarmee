@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
@@ -25,13 +26,16 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -257,6 +261,54 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+                    }
+                }
+            }
+
+            // Support Open Source Card
+            item {
+                SectionHeader(title = "Support Open Source")
+                OutlinedCard(
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Enjoying WakeWalk? ☕",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "WakeWalk is 100% free, ad-free, and open-source. Supporting the developer helps keep it actively maintained and updated.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://buymeacoffee.com/rktiwari00"))
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("☕ Buy Coffee", fontSize = 12.sp)
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/sponsors/rktiwari00"))
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("❤️ Sponsor", fontSize = 12.sp)
+                            }
                         }
                     }
                 }
