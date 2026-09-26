@@ -17,16 +17,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import app.wakewalk.domain.sound.AlarmSoundRegistry
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AudioController @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val soundRegistry: AlarmSoundRegistry = AlarmSoundRegistry()
 ) {
     companion object {
-        const val URI_DEFAULT_CALL_RINGTONE = "content://wakewalk/sound/call_ringtone"
-        const val URI_DEFAULT_ALARM = "content://wakewalk/sound/alarm"
+        const val URI_DEFAULT_CALL_RINGTONE = AlarmSoundRegistry.TOKEN_DEFAULT_CALL_RINGTONE
+        const val URI_DEFAULT_ALARM = AlarmSoundRegistry.TOKEN_DEFAULT_ALARM
         const val TITLE_PHONE_RINGTONE = "Phone Ringtone (Default)"
         const val TITLE_STANDARD_ALARM = "Standard Alarm Sound"
     }
@@ -36,6 +38,11 @@ class AudioController @Inject constructor(
     private var fallbackRingtone: Ringtone? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var volumeRampJob: Job? = null
+    private var duckJob: Job? = null
+    private var previewPlayer: MediaPlayer? = null
+
+    var isVolumeDucked: Boolean = false
+        private set
 
     private val audioAttributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_ALARM)
@@ -110,6 +117,103 @@ class AudioController @Inject constructor(
         }
     }
 
+    fun ensureMaxAlarmVolume() {
+        try {
+            val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVol, 0)
+            Log.d("WakeWalk", "AudioController: STREAM_ALARM set to 100% max volume ($maxVol)")
+        } catch (e: Exception) {
+            Log.w("WakeWalk", "AudioController: Could not set max volume on STREAM_ALARM", e)
+        }
+    }
+
+    fun duckVolume(targetVolume: Float = 0.30f, durationMs: Long = 1500L) {
+        isVolumeDucked = true
+        duckJob?.cancel()
+        val player = mediaPlayer ?: return
+        duckJob = CoroutineScope(Dispatchers.Default).launch {
+            val steps = 10
+            val stepDelay = (durationMs / steps).coerceAtLeast(1L)
+            for (i in 1..steps) {
+                delay(stepDelay)
+                val current = 1.0f - (1.0f - targetVolume) * (i.toFloat() / steps)
+                try {
+                    player.setVolume(current, current)
+                } catch (_: Exception) {
+                    break
+                }
+            }
+        }
+    }
+
+    fun restoreVolume(targetVolume: Float = 1.0f, durationMs: Long = 2000L) {
+        isVolumeDucked = false
+        duckJob?.cancel()
+        val player = mediaPlayer ?: return
+        duckJob = CoroutineScope(Dispatchers.Default).launch {
+            val startVol = 0.30f
+            val steps = 10
+            val stepDelay = (durationMs / steps).coerceAtLeast(1L)
+            for (i in 1..steps) {
+                delay(stepDelay)
+                val current = startVol + (targetVolume - startVol) * (i.toFloat() / steps)
+                try {
+                    player.setVolume(current, current)
+                } catch (_: Exception) {
+                    break
+                }
+            }
+        }
+    }
+
+    fun previewSound(rawResName: String? = null, uri: Uri? = null, onCompletion: () -> Unit = {}) {
+        stopPreview()
+        try {
+            val player = MediaPlayer().apply {
+                setAudioAttributes(audioAttributes)
+                if (!rawResName.isNullOrBlank()) {
+                    val resId = context.resources.getIdentifier(rawResName, "raw", context.packageName)
+                    if (resId != 0) {
+                        val afd = context.resources.openRawResourceFd(resId)
+                        setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                        afd.close()
+                    } else {
+                        return
+                    }
+                } else if (uri != null) {
+                    setDataSource(context, uri)
+                } else {
+                    return
+                }
+                setVolume(0.7f, 0.7f)
+                setOnCompletionListener {
+                    stopPreview()
+                    onCompletion()
+                }
+                prepare()
+                start()
+            }
+            previewPlayer = player
+        } catch (e: Exception) {
+            Log.w("WakeWalk", "AudioController: Preview failed", e)
+            stopPreview()
+        }
+    }
+
+    fun stopPreview() {
+        try {
+            previewPlayer?.let { player ->
+                if (player.isPlaying) {
+                    player.stop()
+                }
+                player.release()
+            }
+        } catch (_: Exception) {
+        } finally {
+            previewPlayer = null
+        }
+    }
+
     private fun ensureAlarmVolumeAudible() {
         try {
             val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
@@ -132,6 +236,19 @@ class AudioController @Inject constructor(
         if (uriString == URI_DEFAULT_ALARM) {
             return TITLE_STANDARD_ALARM
         }
+        if (uriString == AlarmSoundRegistry.TOKEN_RANDOM_HARSH) {
+            return "🎲 Random (Harsh / Intense)"
+        }
+        if (uriString == AlarmSoundRegistry.TOKEN_RANDOM_SMOOTH) {
+            return "🎲 Random (Smooth / Gentle)"
+        }
+        if (uriString == AlarmSoundRegistry.TOKEN_RANDOM_ALL) {
+            return "🎲 Random (All Sounds)"
+        }
+        val registered = soundRegistry.getAllSounds().find { it.contentUri == uriString }
+        if (registered != null) {
+            return registered.title
+        }
         return try {
             val uri = Uri.parse(uriString)
             val ringtone = RingtoneManager.getRingtone(context, uri)
@@ -144,6 +261,18 @@ class AudioController @Inject constructor(
 
     internal fun buildCandidateUris(customSoundUri: String?): List<Uri> {
         val list = mutableListOf<Uri>()
+
+        // 1. Resolve registered sounds in AlarmSoundRegistry
+        if (customSoundUri != null && customSoundUri != URI_DEFAULT_CALL_RINGTONE && customSoundUri != URI_DEFAULT_ALARM) {
+            val registeredSound = soundRegistry.resolveSound(customSoundUri)
+            if (registeredSound.rawResName != null) {
+                val resId = context.resources.getIdentifier(registeredSound.rawResName, "raw", context.packageName)
+                if (resId != 0) {
+                    val rawUri = Uri.parse("android.resource://${context.packageName}/$resId")
+                    list.add(rawUri)
+                }
+            }
+        }
 
         // 1. Explicit Custom URI if provided (and not one of our symbolic tokens)
         if (customSoundUri != null && customSoundUri != URI_DEFAULT_CALL_RINGTONE && customSoundUri != URI_DEFAULT_ALARM) {
@@ -257,6 +386,10 @@ class AudioController @Inject constructor(
     fun stopAudio() {
         volumeRampJob?.cancel()
         volumeRampJob = null
+        duckJob?.cancel()
+        duckJob = null
+        isVolumeDucked = false
+        stopPreview()
 
         try {
             mediaPlayer?.let { player ->
