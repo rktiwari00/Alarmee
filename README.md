@@ -135,3 +135,9 @@ Under the in-app **Settings** tab, WakeWalk includes a live diagnostics dashboar
 
 - **100% On-Device:** WakeWalk collects zero analytics, has no user tracking, and transmits no data to external servers.
 - **Local Storage:** All alarms, historical stats, and preferences are stored exclusively in local Room and DataStore databases.
+
+---
+
+## 📄 License
+
+This project is open-source under the [MIT License](LICENSE).
