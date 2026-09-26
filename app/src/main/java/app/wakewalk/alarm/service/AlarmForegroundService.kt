@@ -2,16 +2,19 @@ package app.wakewalk.alarm.service
 
 import android.Manifest
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import app.wakewalk.alarm.audio.AudioController
 import app.wakewalk.alarm.notification.AlarmNotificationManager
+import app.wakewalk.alarm.scheduler.AlarmScheduler
 import app.wakewalk.alarm.scheduler.AndroidAlarmScheduler
 import app.wakewalk.alarm.sensor.AndroidSensorAdapter
 import app.wakewalk.alarm.vibration.VibrationController
@@ -21,6 +24,7 @@ import app.wakewalk.domain.model.AlarmStatus
 import app.wakewalk.domain.model.ChallengeType
 import app.wakewalk.domain.model.WakeSession
 import app.wakewalk.domain.movement.MovementValidator
+import app.wakewalk.domain.repository.AlarmRepository
 import app.wakewalk.domain.repository.WakeSessionRepository
 import app.wakewalk.ui.alarm.AlarmActivity
 import dagger.hilt.android.AndroidEntryPoint
@@ -45,6 +49,8 @@ class AlarmForegroundService : Service() {
     }
 
     @Inject lateinit var wakeSessionRepository: WakeSessionRepository
+    @Inject lateinit var alarmRepository: AlarmRepository
+    @Inject lateinit var alarmScheduler: AlarmScheduler
     @Inject lateinit var audioController: AudioController
     @Inject lateinit var vibrationController: VibrationController
     @Inject lateinit var sensorAdapter: AndroidSensorAdapter
@@ -54,12 +60,15 @@ class AlarmForegroundService : Service() {
     private val challengeEngine = ChallengeEngine(validator = MovementValidator())
     private val isTerminated = AtomicBoolean(false)
 
+    private var cpuWakeLock: PowerManager.WakeLock? = null
     private var currentAlarmId: Long = 0L
     private var currentLabel: String = "Alarm"
     private var currentChallengeType: ChallengeType = ChallengeType.WALK
     private var currentQrPayload: String? = null
     private var currentQrLabel: String? = null
     private var targetSteps: Int = 150
+    private var currentSnoozeDurationMinutes: Int = 5
+    private var currentSoundUri: String? = null
     private var startedAtEpochMs: Long = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -82,6 +91,7 @@ class AlarmForegroundService : Service() {
 
     private fun promoteToForeground() {
         val notification = notificationManager.buildRingingNotification(
+            alarmId = currentAlarmId,
             alarmLabel = currentLabel,
             targetSteps = targetSteps,
             currentSteps = challengeEngine.currentSession?.currentSteps ?: 0,
@@ -142,6 +152,7 @@ class AlarmForegroundService : Service() {
         currentAlarmId = intent.getLongExtra(AndroidAlarmScheduler.EXTRA_ALARM_ID, 0L)
         currentLabel = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_ALARM_LABEL) ?: "Wake Up"
         targetSteps = intent.getIntExtra(AndroidAlarmScheduler.EXTRA_TARGET_STEPS, 150)
+        currentSnoozeDurationMinutes = intent.getIntExtra(AndroidAlarmScheduler.EXTRA_SNOOZE_DURATION, 5)
         val challengeTypeName = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_CHALLENGE_TYPE)
         currentChallengeType = challengeTypeName?.let {
             runCatching { ChallengeType.valueOf(it) }.getOrNull()
@@ -152,7 +163,35 @@ class AlarmForegroundService : Service() {
         currentQrLabel = qrLabel
         val vibrationEnabled = intent.getBooleanExtra(AndroidAlarmScheduler.EXTRA_VIBRATION, true)
         val gradualVolume = intent.getBooleanExtra(AndroidAlarmScheduler.EXTRA_GRADUAL_VOLUME, true)
+        currentSoundUri = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_SOUND_URI)
         startedAtEpochMs = System.currentTimeMillis()
+
+        // Acquire persistent CPU WakeLock so Doze / screen sleep cannot pause the alarm
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        if (cpuWakeLock == null) {
+            cpuWakeLock = powerManager?.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "WakeWalk:AlarmForegroundServiceWakeLock"
+            )?.apply {
+                setReferenceCounted(false)
+                acquire(30 * 60 * 1000L) // 30-minute safety limit
+            }
+        }
+
+        // Wake screen so full-screen alarm activity is visible immediately
+        try {
+            @Suppress("DEPRECATION")
+            val screenWakeLock = powerManager?.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                "WakeWalk:AlarmScreenWakeLock"
+            )
+            screenWakeLock?.acquire(10_000L)
+        } catch (e: Exception) {
+            Log.w("WakeWalk", "AlarmForegroundService: Could not acquire screen wake lock", e)
+        }
+
+        // Re-promote with updated currentAlarmId and labels
+        promoteToForeground()
 
         // Also launch AlarmActivity explicitly so challenge UI appears immediately
         try {
@@ -174,6 +213,25 @@ class AlarmForegroundService : Service() {
         }
 
         serviceScope.launch {
+            // Update alarm schedule: repeating alarms rescheduled for next occurrence; one-time alarms disabled in DB
+            try {
+                if (currentAlarmId > 0) {
+                    val alarm = alarmRepository.getAlarmById(currentAlarmId)
+                    if (alarm != null) {
+                        if (alarm.repeatDaysMask != 0) {
+                            // Repeating alarm: reschedule for next occurrence
+                            alarmScheduler.scheduleAlarm(alarm, afterEpochMs = startedAtEpochMs)
+                            Log.d("WakeWalk", "AlarmForegroundService: Repeating alarm $currentAlarmId rescheduled for next occurrence")
+                        } else {
+                            // One-time alarm: mark disabled in DB so UI toggle accurately reflects that it completed
+                            alarmRepository.updateAlarm(alarm.copy(isEnabled = false, updatedAtEpochMs = System.currentTimeMillis()))
+                            Log.d("WakeWalk", "AlarmForegroundService: One-time alarm $currentAlarmId marked disabled in DB")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("WakeWalk", "AlarmForegroundService: Error updating alarm schedule", e)
+            }
             // Check if recoverable session exists in Room
             val restored = wakeSessionRepository.restoreSessionFromDb()
             if (restored != null && restored.alarmId == currentAlarmId && !restored.isComplete) {
@@ -203,7 +261,7 @@ class AlarmForegroundService : Service() {
             }
 
             // Start Audio and Vibration
-            audioController.startAlarmAudio(gradualVolume = gradualVolume)
+            audioController.startAlarmAudio(customSoundUri = currentSoundUri, gradualVolume = gradualVolume)
             if (vibrationEnabled) {
                 vibrationController.startAlarmVibration()
             }
@@ -245,6 +303,7 @@ class AlarmForegroundService : Service() {
 
     private fun updateProgressNotification(currentSteps: Int) {
         val notification = notificationManager.buildRingingNotification(
+            alarmId = currentAlarmId,
             alarmLabel = currentLabel,
             targetSteps = targetSteps,
             currentSteps = currentSteps,
@@ -276,6 +335,10 @@ class AlarmForegroundService : Service() {
 
     private fun handleSnooze() {
         challengeEngine.snooze(System.currentTimeMillis())
+        if (currentAlarmId > 0) {
+            alarmScheduler.scheduleSnooze(currentAlarmId, currentSnoozeDurationMinutes)
+            Log.d("WakeWalk", "AlarmForegroundService: Scheduled snooze for alarm $currentAlarmId for $currentSnoozeDurationMinutes min")
+        }
         completeSession(AlarmStatus.SNOOZED)
     }
 
@@ -283,6 +346,14 @@ class AlarmForegroundService : Service() {
         if (!isTerminated.compareAndSet(false, true)) {
             return // Prevent duplicate teardown from racing callbacks
         }
+
+        // Release CPU wake lock
+        try {
+            if (cpuWakeLock?.isHeld == true) {
+                cpuWakeLock?.release()
+            }
+        } catch (_: Exception) {}
+        cpuWakeLock = null
 
         val session = challengeEngine.currentSession
         val completedSteps = session?.currentSteps ?: 0
@@ -333,6 +404,12 @@ class AlarmForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            if (cpuWakeLock?.isHeld == true) {
+                cpuWakeLock?.release()
+            }
+        } catch (_: Exception) {}
+        cpuWakeLock = null
         sensorAdapter.stop()
         audioController.stopAudio()
         vibrationController.stopVibration()

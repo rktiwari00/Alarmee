@@ -33,6 +33,7 @@ class AndroidAlarmScheduler @Inject constructor(
         const val EXTRA_GRADUAL_VOLUME = "extra_gradual_volume"
         const val EXTRA_SNOOZE_ENABLED = "extra_snooze_enabled"
         const val EXTRA_SNOOZE_DURATION = "extra_snooze_duration"
+        const val EXTRA_SOUND_URI = "extra_sound_uri"
     }
 
     override fun canScheduleExactAlarms(): Boolean {
@@ -47,17 +48,26 @@ class AndroidAlarmScheduler @Inject constructor(
         }
     }
 
-    override fun scheduleAlarm(alarm: AlarmEntity) {
+    override fun scheduleAlarm(alarm: AlarmEntity, afterEpochMs: Long?) {
         if (!alarm.isEnabled) {
             cancelAlarm(alarm.id)
             return
         }
 
-        val triggerTimeEpochMs = AlarmTimeCalculator.calculateNextTriggerTime(
-            hour = alarm.hour,
-            minute = alarm.minute,
-            repeatDaysMask = alarm.repeatDaysMask
-        )
+        val triggerTimeEpochMs = if (afterEpochMs != null) {
+            AlarmTimeCalculator.calculateNextOccurrenceAfter(
+                hour = alarm.hour,
+                minute = alarm.minute,
+                repeatDaysMask = alarm.repeatDaysMask,
+                afterEpochMs = afterEpochMs
+            )
+        } else {
+            AlarmTimeCalculator.calculateNextTriggerTime(
+                hour = alarm.hour,
+                minute = alarm.minute,
+                repeatDaysMask = alarm.repeatDaysMask
+            )
+        }
 
         val remainingSec = (triggerTimeEpochMs - System.currentTimeMillis()) / 1000
         Log.d(
@@ -77,6 +87,7 @@ class AndroidAlarmScheduler @Inject constructor(
             putExtra(EXTRA_GRADUAL_VOLUME, alarm.gradualVolume)
             putExtra(EXTRA_SNOOZE_ENABLED, alarm.snoozeEnabled)
             putExtra(EXTRA_SNOOZE_DURATION, alarm.snoozeDurationMinutes)
+            putExtra(EXTRA_SOUND_URI, alarm.soundUri)
         }
 
         val pendingTriggerIntent = PendingIntent.getBroadcast(
@@ -172,6 +183,61 @@ class AndroidAlarmScheduler @Inject constructor(
         }
     }
 
+    override fun scheduleSnooze(alarmId: Long, snoozeDurationMinutes: Int) {
+        val triggerTimeEpochMs = System.currentTimeMillis() + (snoozeDurationMinutes * 60_000L)
+        val remainingSec = (triggerTimeEpochMs - System.currentTimeMillis()) / 1000
+        Log.d(
+            "WakeWalk",
+            "AndroidAlarmScheduler: Scheduling snooze for alarm $alarmId in $snoozeDurationMinutes min (at $triggerTimeEpochMs)"
+        )
+
+        val triggerIntent = Intent(context, AlarmReceiver::class.java).apply {
+            action = ACTION_TRIGGER_ALARM
+            putExtra(EXTRA_ALARM_ID, alarmId)
+            putExtra(EXTRA_ALARM_LABEL, "Snoozed Alarm")
+            putExtra(EXTRA_VIBRATION, true)
+            putExtra(EXTRA_GRADUAL_VOLUME, true)
+            putExtra(EXTRA_SNOOZE_ENABLED, true)
+            putExtra(EXTRA_SNOOZE_DURATION, snoozeDurationMinutes)
+        }
+
+        val snoozeRequestCode = (alarmId + 100_000L).toInt()
+        val pendingTriggerIntent = PendingIntent.getBroadcast(
+            context,
+            snoozeRequestCode,
+            triggerIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val showIntent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent()
+        val pendingShowIntent = PendingIntent.getActivity(
+            context,
+            snoozeRequestCode,
+            showIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        try {
+            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTimeEpochMs, pendingShowIntent)
+            alarmManager.setAlarmClock(alarmClockInfo, pendingTriggerIntent)
+            Log.d("WakeWalk", "AndroidAlarmScheduler: Snooze scheduled via setAlarmClock for alarm $alarmId")
+        } catch (e: SecurityException) {
+            try {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTimeEpochMs,
+                    pendingTriggerIntent
+                )
+            } catch (_: SecurityException) {
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTimeEpochMs,
+                    pendingTriggerIntent
+                )
+            }
+        }
+    }
+
     override fun cancelAlarm(alarmId: Long) {
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             action = ACTION_TRIGGER_ALARM
@@ -186,6 +252,19 @@ class AndroidAlarmScheduler @Inject constructor(
             alarmManager.cancel(pendingIntent)
             pendingIntent.cancel()
             Log.d("WakeWalk", "AndroidAlarmScheduler: Canceled alarm $alarmId")
+        }
+
+        val snoozeRequestCode = (alarmId + 100_000L).toInt()
+        val snoozePendingIntent = PendingIntent.getBroadcast(
+            context,
+            snoozeRequestCode,
+            intent,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+        if (snoozePendingIntent != null) {
+            alarmManager.cancel(snoozePendingIntent)
+            snoozePendingIntent.cancel()
+            Log.d("WakeWalk", "AndroidAlarmScheduler: Canceled snooze for alarm $alarmId")
         }
     }
 
