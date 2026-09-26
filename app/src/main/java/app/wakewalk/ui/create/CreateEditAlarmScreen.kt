@@ -1,5 +1,13 @@
 package app.wakewalk.ui.create
 
+import android.app.Activity
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,8 +29,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -55,12 +65,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import app.wakewalk.alarm.audio.AudioController
 import app.wakewalk.domain.model.ChallengeType
 import app.wakewalk.ui.components.CameraBarcodeScanner
 import app.wakewalk.ui.components.RepeatDaySelector
@@ -79,13 +91,30 @@ fun CreateEditAlarmScreen(
         viewModel.initForAlarm(alarmId)
     }
 
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
     var showTimePicker by remember { mutableStateOf(false) }
     var showScannerDialog by remember { mutableStateOf(false) }
     var showLabelPromptDialog by remember { mutableStateOf(false) }
+    var showSoundDialog by remember { mutableStateOf(false) }
     var scannedTempCode by remember { mutableStateOf("") }
     var labelInput by remember { mutableStateOf("") }
     var isTorchOn by remember { mutableStateOf(false) }
+
+    val ringtonePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+            val title = uri?.let { RingtoneManager.getRingtone(context, it)?.getTitle(context) }
+            viewModel.setSoundUri(uri?.toString(), title)
+        }
+    }
 
     val amPm = if (state.hour >= 12) "PM" else "AM"
     val displayHour = when (val h = state.hour % 12) {
@@ -347,6 +376,52 @@ fun CreateEditAlarmScreen(
 
             HorizontalDivider()
 
+            // Sound & Tone Selector Card
+            ElevatedCard(
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showSoundDialog = true }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Sound & Tone",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = state.soundTitle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Change sound",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             // Sound & Vibration Toggles
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(
@@ -482,6 +557,125 @@ fun CreateEditAlarmScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showLabelPromptDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Sound & Tone Selection Dialog
+        if (showSoundDialog) {
+            AlertDialog(
+                onDismissRequest = { showSoundDialog = false },
+                title = { Text("Alarm Sound & Tone") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = "Choose the sound that rings when your alarm goes off:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        // Option 1: Phone Ringtone (Default)
+                        OutlinedCard(
+                            shape = RoundedCornerShape(12.dp),
+                            border = if (state.soundUri == null || state.soundUri == AudioController.URI_DEFAULT_CALL_RINGTONE) {
+                                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                            } else {
+                                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setSoundUri(null, AudioController.TITLE_PHONE_RINGTONE)
+                                    showSoundDialog = false
+                                }
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    text = "📞 Phone Ringtone (Default)",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = "Uses your incoming phone call ringtone. Familiar tone is proven to wake you reliably.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Option 2: Standard Alarm Sound
+                        OutlinedCard(
+                            shape = RoundedCornerShape(12.dp),
+                            border = if (state.soundUri == AudioController.URI_DEFAULT_ALARM) {
+                                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                            } else {
+                                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setSoundUri(AudioController.URI_DEFAULT_ALARM, AudioController.TITLE_STANDARD_ALARM)
+                                    showSoundDialog = false
+                                }
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    text = "⏰ Standard Alarm Sound",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = "Standard Android system alarm chime.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Option 3: Choose from Device...
+                        OutlinedCard(
+                            shape = RoundedCornerShape(12.dp),
+                            border = if (state.soundUri != null && state.soundUri != AudioController.URI_DEFAULT_CALL_RINGTONE && state.soundUri != AudioController.URI_DEFAULT_ALARM) {
+                                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                            } else {
+                                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showSoundDialog = false
+                                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE or RingtoneManager.TYPE_ALARM)
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Alarm Tone")
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                        state.soundUri?.let { uriStr ->
+                                            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(uriStr))
+                                        }
+                                    }
+                                    ringtonePickerLauncher.launch(intent)
+                                }
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    text = "🎵 Choose from Device...",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = "Pick any ringtone or audio file installed on your device.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSoundDialog = false }) {
                         Text("Cancel")
                     }
                 }
